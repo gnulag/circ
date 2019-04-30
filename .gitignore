@@ -1,0 +1,12 @@
+build/*
+*.o
+*.so
+*.dll
+*.exe
+
+# vim swap files
+*.sw?
+*.un~
+
+# mac finder crap
+*.DS_Store
