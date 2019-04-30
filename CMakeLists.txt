@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(circ)
+project(circ C)
 
-set(SOURCES
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+include(PrettyCompilerColors)
+
+add_executable(circ
   "lib/config/config.c"
   "lib/config/config.h"
   "lib/log/log.c"
@@ -10,6 +14,11 @@ set(SOURCES
   "circ.c"
 )
 
-message(STATUS "SOURCES=${SOURCES}")
+find_library(LIBEV_LIBS        NAMES ev        REQUIRED)
+find_library(LIBUNISTRING_LIBS NAMES unistring REQUIRED)
 
-add_executable(circ ${SOURCES})
+target_link_libraries(
+	circ
+	# ${LIBEV_LIBS}
+	# ${LIBUNISTRING_LIBS}
+)
