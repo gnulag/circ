@@ -10,3 +10,13 @@ build/*
 
 # mac finder crap
 *.DS_Store
+
+# builds and other cmake shit
+bin
+CMakeFiles
+cmake_install.cmake
+CMakeCache.txt
+Makefile
+
+# vscode cuz flotwig uses a real man's editor
+.vscode/ipch

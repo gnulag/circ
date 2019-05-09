@@ -4,15 +4,9 @@ project(circ C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
-include(PrettyCompilerColors)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_executable(circ circ.c)
 
-find_library(LIBEV_LIBS        NAMES ev        REQUIRED)
-find_library(LIBUNISTRING_LIBS NAMES unistring REQUIRED)
-
-target_link_libraries(
-	circ
-	${LIBEV_LIBS}
-	${LIBUNISTRING_LIBS}
-)
