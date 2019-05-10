@@ -13,6 +13,7 @@ char* getConfigLength() {
 void printConfig() {
   int configLength = getConfigLength();
   for (int i = 0; i < configLength; i++) {
-    getConfigValueForKey(CONFIG_KEY_STRING[i]);
+    char* value = getConfigValueForKey(CONFIG_KEY_STRING[i]);
+    printf("%s: %s\n", CONFIG_KEY_STRING[i], value);
   }
 }

@@ -19,4 +19,4 @@ CMakeCache.txt
 Makefile
 
 # vscode cuz flotwig uses a real man's editor
-.vscode/ipch
+.vscode
