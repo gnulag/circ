@@ -18,6 +18,6 @@ static const char *CONFIG_KEY_STRING[] = {
   FOREACH_CONFIG_KEY(GENERATE_STRING)
 };
 
-char* getConfigValueForKey(char* key);
-char* getConfigLength();
+char* getConfigValueForKey(const char* key);
+int getConfigLength();
 void printConfig();
