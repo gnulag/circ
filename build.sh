@@ -1,4 +1,14 @@
 #!/bin/sh
+set +e
 
-cmake .
+mkdir -p build
+cd ./build
+
+cmake ../
 make
+
+MAKE_EXIT_CODE=$?
+
+cd ../
+
+exit $?
