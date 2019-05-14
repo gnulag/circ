@@ -19,6 +19,6 @@ find_library(LIBUNISTRING_LIBS NAMES unistring REQUIRED)
 
 target_link_libraries(
 	circ
-	# ${LIBEV_LIBS}
-	# ${LIBUNISTRING_LIBS}
+	${LIBEV_LIBS}
+	${LIBUNISTRING_LIBS}
 )

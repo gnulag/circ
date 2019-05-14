@@ -9,7 +9,13 @@ something.
 
 ## Building
 
-Requires `cmake`, `make`, and a C compiler.
+Requirements:
+
+* `cmake`
+* `make`
+* a C compiler
+* `libunistring-dev`
+* `libev-dev`
 
 ```
 ./build.sh
