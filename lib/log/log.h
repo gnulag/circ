@@ -1,3 +1,3 @@
-void logInfo(char* fmt, ...);
+void log_info(char* fmt, ...);
 
-void logDebug(char* fmt, ...);
+void log_debug(char* fmt, ...);

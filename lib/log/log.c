@@ -1,20 +1,24 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include "log.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-void logDebug(char* fmt, ...) {
-  va_list argptr;
-  va_start(argptr, fmt);
-  if (getenv("CIRC_DEBUG")) {
-    logInfo(fmt, argptr);
-  }
-  va_end(argptr);
+void
+log_debug (char* fmt, ...)
+{
+	va_list argptr;
+	va_start (argptr, fmt);
+	if (getenv ("CIRC_DEBUG")) {
+		log_info (fmt, argptr);
+	}
+	va_end (argptr);
 }
 
-void logInfo(char* fmt, ...) {
-  va_list argptr;
-  va_start(argptr, fmt);
-  vprintf(fmt, argptr);
-  va_end(argptr);
+void
+log_info (char* fmt, ...)
+{
+	va_list argptr;
+	va_start (argptr, fmt);
+	vprintf (fmt, argptr);
+	va_end (argptr);
 }
