@@ -1,4 +1,3 @@
-build/*
 *.o
 *.so
 *.dll
@@ -10,3 +9,9 @@ build/*
 
 # mac finder crap
 *.DS_Store
+
+# build output
+build
+
+# vscode cuz flotwig uses a real man's editor
+.vscode
