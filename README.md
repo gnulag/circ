@@ -28,3 +28,7 @@ Circ is configured by environment variables. See `lib/config` for more informati
 ```
 ./start.sh
 ```
+
+## Contributing
+
+For contribution guidelines, and editor config see `CONTRIBUTING.md`.

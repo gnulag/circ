@@ -1,18 +1,27 @@
-#include <stdlib.h>
 #include "../log/log.h"
 #include "config.h"
+#include <stdlib.h>
 
-char* getConfigValueForKey(const char* key) {
-  return getenv(key);
+char*
+get_config_value (const char* key)
+{
+	return getenv (key);
 }
 
-int getConfigLength() {
-  return sizeof(CONFIG_KEY_STRING) / sizeof(CONFIG_KEY_STRING[0]);
+int
+get_config_length ()
+{
+	return sizeof (CONFIG_KEY_STRING) / sizeof (CONFIG_KEY_STRING[0]);
 }
 
-void printConfig() {
-  int configLength = getConfigLength();
-  for (int i = 0; i < configLength; i++) {
-    logInfo("%s: %s\n", CONFIG_KEY_STRING[i], getConfigValueForKey(CONFIG_KEY_STRING[i]));
-  }
+void
+print_config ()
+{
+	int config_length = get_config_length ();
+
+	for (int i = 0; i < config_length; i++) {
+		log_info ("%s: %s\n",
+		          CONFIG_KEY_STRING[i],
+		          get_config_value (CONFIG_KEY_STRING[i]));
+	}
 }
