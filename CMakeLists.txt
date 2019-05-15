@@ -12,13 +12,16 @@ add_executable(circ
   "lib/log/log.c"
   "lib/log/log.h"
   "circ.c"
+  "irc.c"
 )
 
 find_library(LIBEV_LIBS        NAMES ev        REQUIRED)
+find_library(LIBGNUTLS_LIBS    NAMES gnutls    REQUIRED)
 find_library(LIBUNISTRING_LIBS NAMES unistring REQUIRED)
 
 target_link_libraries(
 	circ
 	${LIBEV_LIBS}
+	${LIBGNUTLS_LIBS}
 	${LIBUNISTRING_LIBS}
 )
