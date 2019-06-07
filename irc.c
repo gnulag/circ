@@ -4,12 +4,16 @@
 #include <netdb.h>		// getaddrinfo
 
 #include <errno.h>
+#include <pthread.h>		// pthread_mutex_*
 #include <stdlib.h>		// malloc, free
+#include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>		// close
 
 #include "irc.h"
 
+#define IRC_MESSAGE_SIZE (4096 + 1)	// IRCv3 message size + 1 for '\0'
 
 typedef struct {
 	const irc_server *server;
@@ -17,6 +21,13 @@ typedef struct {
 	int socket;
 } irc_connection;
 
+static ev_io watcher;
+static const irc_server *ev_serv;
+static pthread_mutex_t ev_serv_read_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t ev_serv_write_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+static void irc_loop_callback (EV_P_ ev_io *w, int re);
+static bool irc_message_end (char *, int, int);
 int irc_create_socket (const irc_server *);
 int setup_irc_connection (const irc_server *, int);
 void encrypt_irc_connection (irc_connection *);
@@ -48,6 +59,65 @@ int irc_server_connect (const irc_server *s) {
 
 	setup_irc_connection (s, sock);
 	return 0;
+}
+
+/*
+ * Start an I/O event loop for reading server s.
+ * Currently, a single server is supported. In the future this could be moved
+ * to the irc_connection struct and be found back through the watcher.
+ */
+void irc_do_event_loop (const irc_server *s) {
+	irc_connection *conn = get_irc_connection (s);
+	struct ev_loop *loop = EV_DEFAULT;
+	ev_serv = s;
+
+	ev_io_init (&watcher, irc_loop_callback, conn->socket, EV_READ);
+	ev_io_start (loop, &watcher);
+
+	ev_run (loop, 0);
+}
+
+/* irc_loop_callback handles a single IRC message synchronously */
+static void irc_loop_callback (EV_P_ ev_io *w, int re) {
+//	int i;
+//	char **messages;
+	char buf[IRC_MESSAGE_SIZE];
+	memset(buf, 0, sizeof(buf));
+
+	pthread_mutex_lock (&ev_serv_read_mtx);
+	irc_read_message (ev_serv, buf);
+	pthread_mutex_unlock (&ev_serv_read_mtx);
+
+	puts (buf);
+	// to_modules should return a list of responses for each matching module
+//	messages = to_modules(buf);
+	pthread_mutex_lock (&ev_serv_write_mtx);
+//	for (i = 0; messages[i] != NULL; i++)
+//		irc_write_bytes(ev_serv, messages[i]);
+	pthread_mutex_unlock (&ev_serv_write_mtx);
+}
+
+/* irc_message_end returns true if the message has ended */
+static bool irc_message_end (char *buf, int i, int n) {
+	if (i == 0)
+		return false;
+
+	return (
+		(buf[i - 1] == '\r' && buf[i] == '\n') ||
+		i >= IRC_MESSAGE_SIZE ||
+		n != 1
+	);
+}
+
+/* irc_read_message reads an IRC message to a buffer */
+int irc_read_message (const irc_server *s, char buf[IRC_MESSAGE_SIZE]) {
+	char c[2];
+	int i, n = 1;
+
+	for (i = 0; buf[i - 1] != '\r' && buf[i] != '\n'; i++)
+		n = irc_read_bytes (s, buf + i, 1);
+
+	return i;
 }
 
 /* Read nbytes from the irc_server s's connection */
