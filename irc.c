@@ -97,7 +97,6 @@ static void irc_loop_callback (EV_P_ ev_io *w, int re) {
 
 /* irc_read_message reads an IRC message to a buffer */
 int irc_read_message (const irc_server *s, char buf[IRC_MESSAGE_SIZE]) {
-	char c[2];
 	int i, n = 1;
 
 	for (i = 0; buf[i - 1] != '\r' && buf[i] != '\n'; i++)
