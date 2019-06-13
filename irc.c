@@ -59,11 +59,7 @@ int irc_server_connect (const irc_server *s) {
 	return 0;
 }
 
-/*
- * Start an I/O event loop for reading server s.
- * Currently, a single server is supported. In the future this could be moved
- * to the irc_connection struct and be found back through the watcher.
- */
+/* Start an I/O event loop for reading server s. */
 void irc_do_event_loop (const irc_server *s) {
 	irc_connection *conn = get_irc_server_connection (s);
 	struct ev_loop *loop = EV_DEFAULT;
@@ -255,9 +251,7 @@ irc_connection *get_irc_server_connection (const irc_server *s) {
 	return NULL;
 }
 
-/*
- * Return the irc_connection for the server watched by the given watcher
- */
+/* Return the irc_connection for the server watched by the given watcher */
 irc_connection *get_irc_connection_from_watcher (const ev_io *w) {
 	int i;
 	for (i = 0; conns[i] != NULL; i++) {
