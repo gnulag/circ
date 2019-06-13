@@ -64,6 +64,8 @@ void irc_do_event_loop (const irc_server *s) {
 	irc_connection *conn = get_irc_server_connection (s);
 	struct ev_loop *loop = EV_DEFAULT;
 
+	pthread_mutex_init(&conn->ev_read_mtx, NULL);
+	pthread_mutex_init(&conn->ev_write_mtx, NULL);
 	ev_io_init (&conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
 	ev_io_start (loop, &conn->ev_watcher);
 
