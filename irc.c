@@ -13,7 +13,7 @@
 
 #include "irc.h"
 
-#define IRC_MESSAGE_SIZE (4096 + 1)	// IRCv3 message size + 1 for '\0'
+#define IRC_MESSAGE_SIZE 8192	// IRCv3 message size + 1 for '\0'
 
 typedef struct {
 	const irc_server *server;
