@@ -34,12 +34,8 @@ main (int argc, char** argv)
 		err (1, "");
 	puts ("sent nick/user info");
 
-	puts ("entering read/print loop");
-	char c;
-	/* While exactly one byte is read, print it back */
-	while (irc_read_bytes (&s, &c, 1) == 1)
-		/* Just print what the server says for now */
-		write (1, &c, 1);
+	puts ("entering event loop");
+	irc_do_event_loop(&s);
 
 	return 0;
 }

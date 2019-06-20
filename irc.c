@@ -4,25 +4,34 @@
 #include <netdb.h>		// getaddrinfo
 
 #include <errno.h>
+#include <pthread.h>		// pthread_mutex_*
 #include <stdlib.h>		// malloc, free
+#include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>		// close
 
 #include "irc.h"
 
+#define IRC_MESSAGE_SIZE 8192	// IRCv3 message size + 1 for '\0'
 
 typedef struct {
 	const irc_server *server;
 	gnutls_session_t tls_session;
 	int socket;
+	ev_io ev_watcher;
+	pthread_mutex_t ev_read_mtx;
+	pthread_mutex_t ev_write_mtx;
 } irc_connection;
 
+static void irc_loop_callback (EV_P_ ev_io *w, int re);
 int irc_create_socket (const irc_server *);
 int setup_irc_connection (const irc_server *, int);
 void encrypt_irc_connection (irc_connection *);
 irc_connection *create_irc_connection (const irc_server *, int);
 int make_irc_connection_entry (irc_connection *);
-irc_connection *get_irc_connection (const irc_server *);
+irc_connection *get_irc_server_connection (const irc_server *);
+irc_connection *get_irc_connection_from_watcher(const ev_io *w);
 bool server_connected (const irc_server *s);
 bool connections_cap_reached (void);
 
@@ -50,13 +59,57 @@ int irc_server_connect (const irc_server *s) {
 	return 0;
 }
 
+/* Start an I/O event loop for reading server s. */
+void irc_do_event_loop (const irc_server *s) {
+	irc_connection *conn = get_irc_server_connection (s);
+	struct ev_loop *loop = EV_DEFAULT;
+
+	pthread_mutex_init(&conn->ev_read_mtx, NULL);
+	pthread_mutex_init(&conn->ev_write_mtx, NULL);
+	ev_io_init (&conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
+	ev_io_start (loop, &conn->ev_watcher);
+
+	ev_run (loop, 0);
+}
+
+/* irc_loop_callback handles a single IRC message synchronously */
+static void irc_loop_callback (EV_P_ ev_io *w, int re) {
+	irc_connection *conn = get_irc_connection_from_watcher (w);
+//	int i;
+//	char **messages;
+	char buf[IRC_MESSAGE_SIZE];
+	memset(buf, 0, sizeof(buf));
+
+	pthread_mutex_lock (&conn->ev_read_mtx);
+	irc_read_message (conn->server, buf);
+	pthread_mutex_unlock (&conn->ev_read_mtx);
+
+	puts (buf);
+	// to_modules should return a list of responses for each matching module
+//	messages = to_modules(buf);
+	pthread_mutex_lock (&conn->ev_write_mtx);
+//	for (i = 0; messages[i] != NULL; i++)
+//		irc_write_bytes(ev_serv, messages[i]);
+	pthread_mutex_unlock (&conn->ev_write_mtx);
+}
+
+/* irc_read_message reads an IRC message to a buffer */
+int irc_read_message (const irc_server *s, char buf[IRC_MESSAGE_SIZE]) {
+	int i, n = 1;
+
+	for (i = 0; buf[i - 1] != '\r' && buf[i] != '\n'; i++)
+		n = irc_read_bytes (s, buf + i, 1);
+
+	return i;
+}
+
 /* Read nbytes from the irc_server s's connection */
 int irc_read_bytes (const irc_server *s, char *buf, size_t nbytes) {
 	if (buf == NULL)
 		return -1;
 
 	int ret;
-	irc_connection *c = get_irc_connection (s);
+	irc_connection *c = get_irc_server_connection (s);
 	if (c == NULL)
 		return -1;
 
@@ -74,7 +127,7 @@ int irc_write_bytes (const irc_server *s, char *buf, size_t nbytes) {
 		return -1;
 
 	int ret;
-	irc_connection *c = get_irc_connection (s);
+	irc_connection *c = get_irc_server_connection (s);
 	if (c == NULL)
 		return -1;
 
@@ -190,7 +243,7 @@ int make_irc_connection_entry (irc_connection *c) {
  * Return an irc_connection to irc_server s if there's one,
  * return NULL if there's none
  */
-irc_connection *get_irc_connection (const irc_server *s) {
+irc_connection *get_irc_server_connection (const irc_server *s) {
 	int i;
 	for (i = 0; conns[i] != NULL; i++) {
 		if (s == conns[i]->server)
@@ -200,9 +253,20 @@ irc_connection *get_irc_connection (const irc_server *s) {
 	return NULL;
 }
 
+/* Return the irc_connection for the server watched by the given watcher */
+irc_connection *get_irc_connection_from_watcher (const ev_io *w) {
+	int i;
+	for (i = 0; conns[i] != NULL; i++) {
+		if (w == &conns[i]->ev_watcher)
+			return conns[i];
+	}
+		
+	return NULL;
+}
+
 /* Returns whether the server is connected */
 bool server_connected (const irc_server *s) {
-	return get_irc_connection (s) != NULL;
+	return get_irc_server_connection (s) != NULL;
 }
 
 /* Returns whether the connections cap is reached */
