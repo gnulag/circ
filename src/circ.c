@@ -4,8 +4,8 @@
 
 #include <stdio.h>	// puts
 
-#include "lib/config/config.h"
-#include "irc.h"
+#include "../lib/config/config.h"
+#include "../lib/irc/irc.h"
 
 irc_server s = {
 	"Snoonet",

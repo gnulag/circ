@@ -11,8 +11,8 @@ add_executable(circ
   "lib/config/config.h"
   "lib/log/log.c"
   "lib/log/log.h"
-  "circ.c"
-  "irc.c"
+  "lib/irc/irc.c"
+  "src/circ.c"
 )
 
 find_library(LIBEV_LIBS        NAMES ev        REQUIRED)
