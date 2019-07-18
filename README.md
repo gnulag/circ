@@ -16,6 +16,7 @@ Requirements:
 * a C compiler
 * `libunistring-dev`
 * `libev-dev`
+* `gnutls-dev`
 
 ```
 ./build.sh
