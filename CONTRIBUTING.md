@@ -13,6 +13,7 @@ git clone git@github.com:<your-username>/circ.git
 * a C compiler
 * `libunistring-dev`
 * `libev-dev`
+* `gnutls-dev`
 
 **Install the development dependencies (this is important!):**
 
