@@ -3,6 +3,7 @@
 #include <gnutls/gnutls.h>	// TLS support
 #include <netdb.h>		// getaddrinfo
 
+#include <err.h>	// err for panics
 #include <errno.h>
 #include <pthread.h>		// pthread_mutex_*
 #include <stdlib.h>		// malloc, free
@@ -11,7 +12,11 @@
 #include <string.h>
 #include <unistd.h>		// close
 
+#include <glib.h>
+
 #include "irc.h"
+
+#include "irc-parser/ircium-message.h"
 
 #define IRC_MESSAGE_SIZE 8192	// IRCv3 message size + 1 for '\0'
 
@@ -62,14 +67,15 @@ int irc_server_connect (const irc_server *s) {
 /* Start an I/O event loop for reading server s. */
 void irc_do_event_loop (const irc_server *s) {
 	irc_connection *conn = get_irc_server_connection (s);
-	struct ev_loop *loop = EV_DEFAULT;
 
-	pthread_mutex_init(&conn->ev_read_mtx, NULL);
-	pthread_mutex_init(&conn->ev_write_mtx, NULL);
-	ev_io_init (&conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
-	ev_io_start (loop, &conn->ev_watcher);
+    struct ev_loop *loop = EV_DEFAULT;
 
-	ev_run (loop, 0);
+    pthread_mutex_init(&conn->ev_read_mtx, NULL);
+    pthread_mutex_init(&conn->ev_write_mtx, NULL);
+    ev_io_init (&conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
+    ev_io_start (loop, &conn->ev_watcher);
+
+    ev_run (loop, 0);
 }
 
 /* irc_loop_callback handles a single IRC message synchronously */
@@ -80,27 +86,53 @@ static void irc_loop_callback (EV_P_ ev_io *w, int re) {
 	char buf[IRC_MESSAGE_SIZE];
 	memset(buf, 0, sizeof(buf));
 
-	pthread_mutex_lock (&conn->ev_read_mtx);
+    pthread_mutex_lock (&conn->ev_read_mtx);
 	irc_read_message (conn->server, buf);
-	pthread_mutex_unlock (&conn->ev_read_mtx);
+    pthread_mutex_unlock (&conn->ev_read_mtx);
 
-	puts (buf);
+
+    GByteArray *gbuf;
+    gbuf = g_byte_array_new ();
+    gbuf = g_byte_array_append (gbuf, buf, sizeof(buf));
+    IrciumMessage *parsed_message = ircium_message_parse(gbuf, false);
+
+    const char *msg_command = ircium_message_get_command (parsed_message);
+    const char *msg_source = ircium_message_get_source (parsed_message);
+    const GPtrArray *msg_params = ircium_message_get_params (parsed_message);
+    const GPtrArray *msg_tags;
+
+    if (strstr(msg_command, "PING") != NULL) {
+        IrciumMessage *pong_cmd = ircium_message_new (NULL, NULL, "PONG", msg_params);
+        pthread_mutex_lock (&conn->ev_read_mtx);
+        int ret = irc_write_message (conn->server, pong_cmd);
+        pthread_mutex_unlock (&conn->ev_read_mtx);
+
+        if (ret == -1 || errno) {
+            err (1, "Error Responding to PING with PONG");
+        }
+    }
+
+
 	// to_modules should return a list of responses for each matching module
 //	messages = to_modules(buf);
-	pthread_mutex_lock (&conn->ev_write_mtx);
+//	pthread_mutex_lock (&conn->ev_write_mtx);
 //	for (i = 0; messages[i] != NULL; i++)
 //		irc_write_bytes(ev_serv, messages[i]);
-	pthread_mutex_unlock (&conn->ev_write_mtx);
+//	pthread_mutex_unlock (&conn->ev_write_mtx);
 }
+
+
 
 /* irc_read_message reads an IRC message to a buffer */
 int irc_read_message (const irc_server *s, char buf[IRC_MESSAGE_SIZE]) {
-	int i, n = 1;
+    int n = 1;
+    int i = 0;
 
-	for (i = 0; buf[i - 1] != '\r' && buf[i] != '\n'; i++)
-		n = irc_read_bytes (s, buf + i, 1);
+	for (i = 0; buf[i - 2] != '\r' && buf[i] != '\n'; i++) {
+        n = irc_read_bytes (s, buf + i, 1);
+    }
 
-	return i;
+    return i;
 }
 
 /* Read nbytes from the irc_server s's connection */
@@ -121,20 +153,37 @@ int irc_read_bytes (const irc_server *s, char *buf, size_t nbytes) {
 	return ret;
 }
 
+int irc_write_message (const irc_server *s, IrciumMessage *message) {
+    GBytes *bytes = ircium_message_serialize (message);
+
+    gsize len = 0;
+    guint8 *data = g_bytes_unref_to_data (bytes, &len);
+
+    puts (data);
+
+    size_t size = len;
+    int ret = irc_write_bytes (s, data, size);
+
+    return ret;
+}
+
 /* Write nbytes to the irc_server s's connection */
-int irc_write_bytes (const irc_server *s, char *buf, size_t nbytes) {
+int irc_write_bytes (const irc_server *s, guint8 *buf, size_t nbytes) {
 	if (buf == NULL)
 		return -1;
 
 	int ret;
 	irc_connection *c = get_irc_server_connection (s);
-	if (c == NULL)
+	if (c == NULL) {
 		return -1;
+    }
 
-	if (s->use_TLS)
+	if (s->use_TLS) {
 		ret = gnutls_record_send (c->tls_session, buf, nbytes);
-	else
+    }
+	else {
 		ret = write (c->socket, buf, nbytes);
+    }
 
 	return ret;
 }

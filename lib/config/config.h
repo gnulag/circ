@@ -3,6 +3,7 @@
 #define FOREACH_CONFIG_KEY(T) \
   T(SERVER) \
   T(PORT) \
+  T(SSL) \
   T(NICK) \
   T(IDENT) \
   T(REALNAME)
@@ -18,6 +19,6 @@ static const char *CONFIG_KEY_STRING[] = {
   FOREACH_CONFIG_KEY(GENERATE_STRING)
 };
 
-char* get_config_value_for_key (const char* key);
+char* get_config_value (const char* key);
 int get_config_length ();
 void print_config ();
