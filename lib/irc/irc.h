@@ -12,6 +12,7 @@ typedef struct {
 
 int irc_server_connect (const irc_server *);
 void irc_do_event_loop (const irc_server *);
+void irc_do_init_event_loop (const irc_server *);
 int irc_read_message (const irc_server *, char *);
 int irc_read_bytes (const irc_server *, char *, size_t);
 int irc_write_message (const irc_server *s, IrciumMessage *message);
