@@ -1,0 +1,9 @@
+{
+  plugins: [
+    { 	name: 'example',
+	matchers: ['^mirror'],
+	cmd: 'message',
+	cwd: '/path/to/this/script/example.rkt',
+	config: {prefix: "no u" } }
+  ]
+}
