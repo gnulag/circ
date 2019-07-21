@@ -111,6 +111,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 	irc_read_message (conn->server, buf);
 	pthread_mutex_unlock (&conn->ev_read_mtx);
 
+	puts (buf);
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
@@ -121,15 +122,29 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
 	const GPtrArray* msg_tags;
 
-	puts (buf);
+	if (strstr (msg_command, "PING") != NULL) {
+        GPtrArray* msg_params_nonconst = g_ptr_array_new();
+        g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
+
+		IrciumMessage* pong_cmd =
+		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
+		pthread_mutex_lock (&conn->ev_read_mtx);
+		int ret = irc_write_message (conn->server, pong_cmd);
+		pthread_mutex_unlock (&conn->ev_read_mtx);
+
+		if (ret == -1 || errno) {
+			err (1, "Error Responding to PING with PONG");
+		}
+	}
 
 	char* sasl_enabled = get_config_value (CONFIG_KEY_STRING[6]);
 	if (strcmp (sasl_enabled, "true") != 0) {
-		ev_break;
-	} else if (strcmp (sasl_enabled, "true") == 0 &&
-	           strcmp (msg_command, "AUTHENTICATE") == 0 &&
-	           strcmp (msg_params->pdata[0], "+") == 0) {
-
+		ev_io_stop (EV_A_ w);
+		ev_break (EV_A_ EVBREAK_ALL);
+	}
+	if (strcmp (sasl_enabled, "true") == 0 &&
+	    strcmp (msg_command, "AUTHENTICATE") == 0 &&
+	    strcmp (msg_params->pdata[0], "+") == 0) {
 		char* auth_user = get_config_value (CONFIG_KEY_STRING[7]);
 		char* auth_pass = get_config_value (CONFIG_KEY_STRING[8]);
 
@@ -140,24 +155,44 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		auth_string = g_strdup_printf (
 		  "%s%c%s%c%s", auth_user, nullchar, auth_user, nullchar, auth_pass);
 
-		char* auth_string_encoded =
-		  b64_encode (auth_string, sizeof (auth_user) + sizeof (auth_pass) + 2);
+		char* auth_string_encoded = b64_encode (
+		  auth_string, strlen (auth_user) * 2 + strlen (auth_pass) + 2);
 
 		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
 		g_ptr_array_add (pass_params, auth_string_encoded);
 		IrciumMessage* pass_cmd =
 		  ircium_message_new (NULL, NULL, "AUTHENTICATE", pass_params);
+
+		pthread_mutex_lock (&conn->ev_read_mtx);
 		int ret = irc_write_message (conn->server, pass_cmd);
+		pthread_mutex_unlock (&conn->ev_read_mtx);
+
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
-
 	} else if (strcmp (sasl_enabled, "true") == 0 &&
-	           strcmp (msg_command, "900") == 0) {
-		ev_break;
+	           strcmp (msg_command, "903") == 0) {
+		puts ("leaving init loop");
+		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
+		g_ptr_array_add (pass_params, "END");
+		IrciumMessage* pass_cmd =
+		  ircium_message_new (NULL, NULL, "CAP", pass_params);
+
+		pthread_mutex_lock (&conn->ev_read_mtx);
+		int ret = irc_write_message (conn->server, pass_cmd);
+		pthread_mutex_unlock (&conn->ev_read_mtx);
+
+		if (ret == -1) {
+			err (1, "Error during SASL Auth");
+		}
 	} else if (strcmp (sasl_enabled, "true") == 0 &&
 	           strcmp (msg_command, "904") == 0) {
 		err (1, "Error during SASL Auth");
+	}
+
+	if (strcmp (msg_command, "MODE") == 0) {
+		ev_io_stop (EV_A_ w);
+		ev_break (EV_A_ EVBREAK_ALL);
 	}
 }
 
@@ -191,6 +226,8 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 	irc_read_message (conn->server, buf);
 	pthread_mutex_unlock (&conn->ev_read_mtx);
 
+	puts ("main");
+	puts (buf);
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
@@ -201,13 +238,14 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
 	const GPtrArray* msg_tags;
 
-	puts (buf);
-
 	if (strstr (msg_command, "PING") != NULL) {
+        GPtrArray* msg_params_nonconst = g_ptr_array_new();
+        g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
+
 		IrciumMessage* pong_cmd =
-		  ircium_message_new (NULL, NULL, "PONG", msg_params);
+		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
 		pthread_mutex_lock (&conn->ev_read_mtx);
-		int ret = irc_write_message (conn->server, pong_cmd);
+		int ret = irc_write_message (&conn->server, pong_cmd);
 		pthread_mutex_unlock (&conn->ev_read_mtx);
 
 		if (ret == -1 || errno) {

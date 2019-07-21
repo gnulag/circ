@@ -83,13 +83,20 @@ main (int argc, char** argv)
 
 	irc_do_init_event_loop (&s);
 
-	/* char join_cmd[] = "JOIN #test\r\n"; */
-	/* ret |= irc_write_bytes (&s, join_cmd, sizeof (join_cmd)); */
-	/* if (ret == -1 || errno) { */
-	/* err (1, "Error Joining channel"); */
-	/* } */
+	char* channel = get_config_value (CONFIG_KEY_STRING[9]);
+	puts (channel);
 
-	puts ("entering event loop");
+	GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
+	g_ptr_array_add (join_params, channel);
+	IrciumMessage* join_cmd =
+	  ircium_message_new (NULL, NULL, "JOIN", join_params);
+
+	ret |= irc_write_message (&s, join_cmd);
+	if (ret == -1) {
+		err (1, "Error during SASL Auth");
+	}
+
+	puts ("entering main loop");
 	irc_do_event_loop (&s);
 
 	return 0;
