@@ -17,9 +17,9 @@
 #include "irc.h"
 
 #include "b64/b64.h"
-#include "log/log.h"
 #include "config/config.h"
 #include "irc-parser/ircium-message.h"
+#include "log/log.h"
 
 #define IRC_MESSAGE_SIZE 8192 // IRCv3 message size + 1 for '\0'
 
@@ -119,34 +119,37 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
 	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 
+	g_byte_array_free (gbuf, TRUE);
+
 	const char* msg_command = ircium_message_get_command (parsed_message);
 	const char* msg_source = ircium_message_get_source (parsed_message);
 	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
 	const GPtrArray* msg_tags;
 
+	/* Responds to PING request with the correct PONG so we don't get timeouted
+	 */
 	if (strstr (msg_command, "PING") != NULL) {
-        GPtrArray* msg_params_nonconst = g_ptr_array_new();
-        g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
+		GPtrArray* msg_params_nonconst = g_ptr_array_new_full (1, g_free);
+		g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
 
 		IrciumMessage* pong_cmd =
 		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		pthread_mutex_lock (&conn->ev_read_mtx);
+		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pong_cmd);
-		pthread_mutex_unlock (&conn->ev_read_mtx);
+		pthread_mutex_unlock (&conn->ev_write_mtx);
+
+		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
 
 		if (ret == -1 || errno) {
 			err (1, "Error Responding to PING with PONG");
 		}
 	}
 
-	char* sasl_enabled = get_config_value (CONFIG_KEY_STRING[6]);
-	if (strcmp (sasl_enabled, "true") != 0) {
-		ev_io_stop (EV_A_ w);
-		ev_break (EV_A_ EVBREAK_ALL);
-	}
-	if (strcmp (sasl_enabled, "true") == 0 &&
+	if (getenv (CONFIG_KEY_STRING[6]) &&
 	    strcmp (msg_command, "AUTHENTICATE") == 0 &&
 	    strcmp (msg_params->pdata[0], "+") == 0) {
+		/* When we receive "AUTHENTICATE +" we can send our user data
+		 */
 		char* auth_user = get_config_value (CONFIG_KEY_STRING[7]);
 		char* auth_pass = get_config_value (CONFIG_KEY_STRING[8]);
 
@@ -165,34 +168,48 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		IrciumMessage* pass_cmd =
 		  ircium_message_new (NULL, NULL, "AUTHENTICATE", pass_params);
 
-		pthread_mutex_lock (&conn->ev_read_mtx);
+		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pass_cmd);
-		pthread_mutex_unlock (&conn->ev_read_mtx);
+		pthread_mutex_unlock (&conn->ev_write_mtx);
+
+		g_free (g_ptr_array_free (pass_params, TRUE));
+		g_free (auth_string);
+		g_free (auth_string_encoded);
+		g_free (auth_user);
+		g_free (auth_pass);
 
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
-	} else if (strcmp (sasl_enabled, "true") == 0 &&
+
+	} else if (getenv (CONFIG_KEY_STRING[6]) &&
 	           strcmp (msg_command, "903") == 0) {
-		log_info ("leaving init loop\n");
+		/* Once we receive the 903 command we know the auth was successful.
+		 * to proceed we need to end the CAP phase
+		 */
 		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
 		g_ptr_array_add (pass_params, "END");
 		IrciumMessage* pass_cmd =
 		  ircium_message_new (NULL, NULL, "CAP", pass_params);
 
-		pthread_mutex_lock (&conn->ev_read_mtx);
+		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pass_cmd);
-		pthread_mutex_unlock (&conn->ev_read_mtx);
+		pthread_mutex_unlock (&conn->ev_write_mtx);
+
+		g_free (g_ptr_array_free (pass_params, TRUE));
 
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
-	} else if (strcmp (sasl_enabled, "true") == 0 &&
+	} else if (getenv (CONFIG_KEY_STRING[6]) &&
 	           strcmp (msg_command, "904") == 0) {
 		err (1, "Error during SASL Auth");
 	}
 
-	if (strcmp (msg_command, "MODE") == 0) {
+	/* If we encounter either the first MODE message or a WELCOME (001)
+	 * message we know we are auth'ed and can exit the init loop
+	 */
+	if (strcmp (msg_command, "MODE") == 0 || strcmp (msg_command, "001") == 0) {
 		ev_io_stop (EV_A_ w);
 		ev_break (EV_A_ EVBREAK_ALL);
 	}
@@ -218,6 +235,8 @@ irc_do_event_loop (const irc_server* s)
 static void
 irc_loop_callback (EV_P_ ev_io* w, int re)
 {
+	// FIXME currently erros with "File exists" when trying to write to the
+	// socket in this loop
 	irc_connection* conn = get_irc_connection_from_watcher (w);
 	//	int i;
 	//	char **messages;
@@ -229,25 +248,32 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 	pthread_mutex_unlock (&conn->ev_read_mtx);
 
 	log_debug ("main loop: %s\n", buf);
+
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
 	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
+
+	g_byte_array_free (gbuf, TRUE);
 
 	const char* msg_command = ircium_message_get_command (parsed_message);
 	const char* msg_source = ircium_message_get_source (parsed_message);
 	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
 	const GPtrArray* msg_tags;
 
+	/* Responds to PING request with the correct PONG so we don't get timeouted
+	 */
 	if (strstr (msg_command, "PING") != NULL) {
-        GPtrArray* msg_params_nonconst = g_ptr_array_new();
-        g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
+		GPtrArray* msg_params_nonconst = g_ptr_array_new_full (1, g_free);
+		g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
 
 		IrciumMessage* pong_cmd =
 		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		pthread_mutex_lock (&conn->ev_read_mtx);
+		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pong_cmd);
-		pthread_mutex_unlock (&conn->ev_read_mtx);
+		pthread_mutex_unlock (&conn->ev_write_mtx);
+
+		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
 
 		if (ret == -1 || errno) {
 			err (1, "Error Responding to PING with PONG");
@@ -296,6 +322,7 @@ irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 	return ret;
 }
 
+/* Serialize an IrciumMessage and send it to the server */
 int
 irc_write_message (const irc_server* s, IrciumMessage* message)
 {

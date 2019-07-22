@@ -9,7 +9,7 @@ log_debug (char* fmt, ...)
 	va_list argptr;
 	va_start (argptr, fmt);
 	if (getenv ("CIRC_DEBUG")) {
-		log_info (fmt, argptr);
+		vprintf (fmt, argptr);
 	}
 	va_end (argptr);
 }
