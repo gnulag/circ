@@ -35,14 +35,15 @@ main (int argc, char** argv)
 	char* auth_user = get_config_value (CONFIG_KEY_STRING[7]);
 	char* auth_pass = get_config_value (CONFIG_KEY_STRING[8]);
 
-	puts ("setting up connection");
+	log_info ("setting up connection\n");
 	int ret = irc_server_connect (&s);
-	puts ("connection setup");
 	if (ret == -1) {
 		err (1, "Error Connecting");
 	}
+	log_info ("connection setup\n");
 
-	puts ("sending nick/user info");
+
+	log_info ("sending nick/user info\n");
 
 	GPtrArray* nick_params = g_ptr_array_new_full (1, g_free);
 	g_ptr_array_add (nick_params, g_strdup (nick));
@@ -62,11 +63,10 @@ main (int argc, char** argv)
 	if (ret == -1 || errno) {
 		err (1, "Error Setting Nick");
 	}
-
-	puts ("sent nick/user info");
+	log_info ("sent nick/user info\n");
 
 	if (strcmp (sasl_enabled, "true") == 0) {
-		puts ("Doing SASL Auth");
+		log_info ("Doing SASL Auth\n");
 		GPtrArray* cap_params = g_ptr_array_new_full (2, g_free);
 		g_ptr_array_add (cap_params, g_strdup ("REQ"));
 		g_ptr_array_add (cap_params, g_strdup ("sasl"));
@@ -84,7 +84,7 @@ main (int argc, char** argv)
 	irc_do_init_event_loop (&s);
 
 	char* channel = get_config_value (CONFIG_KEY_STRING[9]);
-	puts (channel);
+	log_info ("channel: %s \n", channel);
 
 	GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
 	g_ptr_array_add (join_params, channel);
@@ -96,7 +96,7 @@ main (int argc, char** argv)
 		err (1, "Error during SASL Auth");
 	}
 
-	puts ("entering main loop");
+	log_info ("entering main loop\n");
 	irc_do_event_loop (&s);
 
 	return 0;

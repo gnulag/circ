@@ -17,6 +17,7 @@
 #include "irc.h"
 
 #include "b64/b64.h"
+#include "log/log.h"
 #include "config/config.h"
 #include "irc-parser/ircium-message.h"
 
@@ -111,7 +112,8 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 	irc_read_message (conn->server, buf);
 	pthread_mutex_unlock (&conn->ev_read_mtx);
 
-	puts (buf);
+	log_debug ("init loop: %s\n", buf);
+
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
@@ -148,7 +150,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		char* auth_user = get_config_value (CONFIG_KEY_STRING[7]);
 		char* auth_pass = get_config_value (CONFIG_KEY_STRING[8]);
 
-		puts ("Doing SASL Auth");
+		log_info ("Doing SASL Auth\n");
 
 		gchar* auth_string;
 		char nullchar = '\0';
@@ -172,7 +174,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		}
 	} else if (strcmp (sasl_enabled, "true") == 0 &&
 	           strcmp (msg_command, "903") == 0) {
-		puts ("leaving init loop");
+		log_info ("leaving init loop\n");
 		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
 		g_ptr_array_add (pass_params, "END");
 		IrciumMessage* pass_cmd =
@@ -226,8 +228,7 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 	irc_read_message (conn->server, buf);
 	pthread_mutex_unlock (&conn->ev_read_mtx);
 
-	puts ("main");
-	puts (buf);
+	log_debug ("main loop: %s\n", buf);
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
@@ -245,7 +246,7 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 		IrciumMessage* pong_cmd =
 		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
 		pthread_mutex_lock (&conn->ev_read_mtx);
-		int ret = irc_write_message (&conn->server, pong_cmd);
+		int ret = irc_write_message (conn->server, pong_cmd);
 		pthread_mutex_unlock (&conn->ev_read_mtx);
 
 		if (ret == -1 || errno) {
@@ -303,7 +304,7 @@ irc_write_message (const irc_server* s, IrciumMessage* message)
 	gsize len = 0;
 	guint8* data = g_bytes_unref_to_data (bytes, &len);
 
-	puts (data);
+	log_debug ("sending command: %s\n", data);
 
 	size_t size = len;
 	int ret = irc_write_bytes (s, data, size);
