@@ -5,6 +5,7 @@
 
 #include <err.h> // err for panics
 #include <errno.h>
+#include <fcntl.h>
 #include <pthread.h> // pthread_mutex_*
 #include <stdbool.h>
 #include <stdio.h>
@@ -28,6 +29,7 @@ typedef struct
 	const irc_server* server;
 	gnutls_session_t tls_session;
 	int socket;
+	ev_io ev_init_watcher;
 	ev_io ev_watcher;
 } irc_connection;
 
@@ -58,9 +60,56 @@ connections_cap_reached (void);
 #define MAX_CONNECTIONS 10
 static irc_connection* conns[MAX_CONNECTIONS + 1];
 
+// Simply adds O_NONBLOCK to the file descriptor of choice
+int
+setnonblock (int fd)
+{
+	int flags;
+
+	flags = fcntl (fd, F_GETFL);
+	flags |= O_NONBLOCK;
+	return fcntl (fd, F_SETFL, flags);
+}
+
+/* Check if the socket is already Read- or Writeable */
+int
+check_socket (int sock)
+{
+	struct timeval tv;
+	fd_set readfds, writefds;
+	int error;
+
+	FD_SET (sock, &readfds);
+	FD_SET (sock, &writefds);
+
+	puts ("check write\n");
+	tv.tv_sec = 10;
+	tv.tv_usec = 500000;
+	int rv = select (sock + 1, &readfds, &writefds, NULL, &tv);
+
+	if (rv == -1) {
+		perror ("client: connect failed");
+		exit (EXIT_FAILURE);
+	} else if (rv == 0) {
+		perror ("client: connect timeout");
+		exit (EXIT_FAILURE);
+	}
+
+	if (FD_ISSET (sock, &writefds) || FD_ISSET (sock, &readfds)) {
+		int len = sizeof (error);
+		if (getsockopt (sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+			perror ("client: socket not writeable");
+			exit (EXIT_FAILURE);
+		}
+	} else {
+		perror ("client: select error: sock not set");
+		exit (EXIT_FAILURE);
+	}
+}
+
 /*
  * Attempts to connect to server s,
- * return 1 if there's an error, 0 if it succeeded
+ * return -1 if there's an error, 0 if it succeeded
  */
 int
 irc_server_connect (const irc_server* s)
@@ -69,39 +118,38 @@ irc_server_connect (const irc_server* s)
 	 * For now, don't attempt to connect if we're already connected
 	 * to this server or if we have too many connections
 	 */
-	if (server_connected (s) || connections_cap_reached ())
-		return 1;
+	if (server_connected (s)) {
+		log_info ("Server already connected");
+		return -1;
+	}
+
+	if (connections_cap_reached ()) {
+		log_info ("To Many Connections");
+		return -1;
+	}
 
 	int sock = irc_create_socket (s);
-	if (sock == -1)
-		return 1;
+	if (sock == -1) {
+		err (1, "failed creating socket");
+	}
 
-	setup_irc_connection (s, sock);
+	int ret = setup_irc_connection (s, sock);
+	if (ret == 1) {
+		err (1, "failed creating connection");
+	} else if (ret != 0) {
+		perror ("client: could not connect");
+		exit (EXIT_FAILURE);
+	}
+
 	return 0;
-}
-
-/* Start an I/O event loop for reading server s. */
-void
-irc_do_init_event_loop (const irc_server* s)
-{
-	irc_connection* conn = get_irc_server_connection (s);
-
-	struct ev_loop* loop = EV_DEFAULT;
-
-	ev_io_init (
-	  &conn->ev_watcher, irc_init_loop_callback, conn->socket, EV_READ);
-	ev_io_start (loop, &conn->ev_watcher);
-
-	ev_run (loop, 0);
 }
 
 static void
 irc_init_loop_callback (EV_P_ ev_io* w, int re)
 {
 	irc_connection* conn = get_irc_connection_from_watcher (w);
-	//	int i;
-	//	char **messages;
-	char buf[IRC_MESSAGE_SIZE];
+	
+    char buf[IRC_MESSAGE_SIZE];
 	memset (buf, 0, sizeof (buf));
 
 	irc_read_message (conn->server, buf);
@@ -132,15 +180,15 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 
 		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
 
-		if (ret == -1 || errno) {
+		if (ret == -1) {
 			err (1, "Error Responding to PING with PONG");
 		}
 	}
 
-	char *sasl_enabled_str = getenv ("CIRC_SASL_ENABLED");
-	bool sasl_enabled = sasl_enabled_str && strncmp(sasl_enabled_str, "true", 4);
-	if (sasl_enabled &&
-	    strcmp (msg_command, "AUTHENTICATE") == 0 &&
+	char* sasl_enabled_str = getenv ("CIRC_SASL_ENABLED");
+	bool sasl_enabled =
+	  sasl_enabled_str && strncmp (sasl_enabled_str, "true", 4);
+	if (sasl_enabled == 0 && strcmp (msg_command, "AUTHENTICATE") == 0 &&
 	    strcmp (msg_params->pdata[0], "+") == 0) {
 		/* When we receive "AUTHENTICATE +" we can send our user data
 		 */
@@ -166,15 +214,13 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 
 		g_free (g_ptr_array_free (pass_params, TRUE));
 		g_free (auth_string);
-		// g_free (auth_string_encoded);
-		// g_free (auth_user);
-		// g_free (auth_pass);
 
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
 
-	} else if (sasl_enabled && strcmp (msg_command, "903") == 0) {
+	} else if (sasl_enabled == 0 && (strcmp (msg_command, "900") == 0 ||
+	                                 strcmp (msg_command, "903") == 0)) {
 		/* Once we receive the 903 command we know the auth was successful.
 		 * to proceed we need to end the CAP phase
 		 */
@@ -185,21 +231,34 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 
 		int ret = irc_write_message (conn->server, pass_cmd);
 
-		g_free (g_ptr_array_free (pass_params, TRUE));
-
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
-	} else if (sasl_enabled && strcmp (msg_command, "904") == 0) {
+	} else if (sasl_enabled == 0 && strcmp (msg_command, "904") == 0) {
 		err (1, "Error during SASL Auth");
-	}
+	} else if (strcmp (msg_command, "MODE") == 0 ||
+	           strcmp (msg_command, "001") == 0) {
+		/* If we encounter either the first MODE message or a WELCOME (001)
+		 * message we know we are auth'ed and can exit the init loop.
+		 * Before that we JOIN the Channels
+		 */
+		char* channel = getenv ("CIRC_CHANNEL");
+		log_info ("channel: %s \n", channel);
 
-	/* If we encounter either the first MODE message or a WELCOME (001)
-	 * message we know we are auth'ed and can exit the init loop
-	 */
-	if (strcmp (msg_command, "MODE") == 0 || strcmp (msg_command, "001") == 0) {
+		GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
+		g_ptr_array_add (join_params, channel);
+		IrciumMessage* join_cmd =
+		  ircium_message_new (NULL, NULL, "JOIN", join_params);
+		int ret = irc_write_message (conn->server, join_cmd);
+
+		if (ret == -1) {
+			err (1, "Error while Joining Channels");
+		}
+
 		ev_io_stop (EV_A_ w);
-		ev_break (EV_A_ EVBREAK_ALL);
+		ev_io_init (
+		  &conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
+		ev_io_start (EV_A_ & conn->ev_watcher);
 	}
 }
 
@@ -211,7 +270,13 @@ irc_do_event_loop (const irc_server* s)
 
 	struct ev_loop* loop = EV_DEFAULT;
 
-	ev_io_init (&conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
+	/* We First start the loop with the init callback to perform
+	 * our initial setup like SASL and JOINing our channels.
+	 * After that is finished the init loop stops the watcher
+	 * and starts it again with the main callback.
+	 */
+	ev_io_init (
+	  &conn->ev_watcher, irc_init_loop_callback, conn->socket, EV_READ);
 	ev_io_start (loop, &conn->ev_watcher);
 
 	ev_run (loop, 0);
@@ -221,11 +286,8 @@ irc_do_event_loop (const irc_server* s)
 static void
 irc_loop_callback (EV_P_ ev_io* w, int re)
 {
-	// FIXME currently erros with "File exists" when trying to write to the
-	// socket in this loop
 	irc_connection* conn = get_irc_connection_from_watcher (w);
-	//	int i;
-	//	char **messages;
+
 	char buf[IRC_MESSAGE_SIZE];
 	memset (buf, 0, sizeof (buf));
 
@@ -277,6 +339,10 @@ irc_read_message (const irc_server* s, char buf[IRC_MESSAGE_SIZE])
 	int n = 1;
 	int i = 0;
 
+	irc_connection* c = get_irc_server_connection (s);
+	if (c == NULL)
+		return -1;
+
 	for (i = 0; buf[i - 2] != '\r' && buf[i] != '\n'; i++) {
 		n = irc_read_bytes (s, buf + i, 1);
 	}
@@ -299,7 +365,7 @@ irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 	if (s->use_TLS)
 		ret = gnutls_record_recv (c->tls_session, buf, nbytes);
 	else
-		ret = read (c->socket, buf, nbytes);
+		ret = recv (c->socket, buf, nbytes, 0);
 
 	return ret;
 }
@@ -331,13 +397,14 @@ irc_write_bytes (const irc_server* s, guint8* buf, size_t nbytes)
 	int ret;
 	irc_connection* c = get_irc_server_connection (s);
 	if (c == NULL) {
+		puts ("emptry connection");
 		return -1;
 	}
 
 	if (s->use_TLS) {
 		ret = gnutls_record_send (c->tls_session, buf, nbytes);
 	} else {
-		ret = write (c->socket, buf, nbytes);
+		ret = send (c->socket, buf, nbytes, 0);
 	}
 
 	return ret;
@@ -348,33 +415,43 @@ int
 irc_create_socket (const irc_server* s)
 {
 	int ret, sock = -1;
-	struct addrinfo *ai = NULL, *ai_head;
+	struct addrinfo *ai, hints;
 
-	ret = getaddrinfo (s->host, s->port, NULL, &ai);
-	/* ai is a linked list, save the head to free it */
-	ai_head = ai;
-	if (ret)
-		return -1;
+	memset (&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	ret = getaddrinfo (s->host, s->port, &hints, &ai);
+	if (ret == -1) {
+		perror ("client: address");
+		exit (EXIT_FAILURE);
+	}
 
 	/* Try the address info until we get a valid socket */
-	while (sock == -1 && (ai = ai->ai_next) != NULL) {
+	int conn = -1;
+	while (conn == -1 && (ai = ai->ai_next) != NULL) {
 		sock = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (sock == -1) {
+			perror ("client: socket");
+			exit (EXIT_FAILURE);
+		}
 
-		/* We have a valid socket. Setup the connection */
-		ret = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (ret == -1 || errno) {
-			/*
-			 * Connection failed, close
-			 * the socket and keep looking
-			 */
+		ret = setnonblock (sock);
+		if (ret == -1) {
+			perror ("client: socket O_NONBLOCK");
+			exit (EXIT_FAILURE);
+		}
+
+		/* [> We have a valid socket. Setup the connection <] */
+		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
+		if (conn == -1 && errno != EINPROGRESS) {
 			close (sock);
-			sock = -1;
-			errno = 0;
-			continue;
+			conn = -1;
 		}
 	}
 
-	freeaddrinfo (ai_head);
+	check_socket (sock);
+	freeaddrinfo (ai);
+
 	return sock;
 }
 
@@ -387,8 +464,10 @@ setup_irc_connection (const irc_server* s, int sock)
 		return 1;
 
 	make_irc_connection_entry (c);
-	if (s->use_TLS)
+	if (s->use_TLS) {
+		log_debug ("Encrypting connection\n");
 		encrypt_irc_connection (c);
+	}
 
 	return 0;
 }
