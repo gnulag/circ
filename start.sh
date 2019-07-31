@@ -8,8 +8,7 @@ CIRC_SSL=true \
 CIRC_NICK=circ \
 CIRC_REALNAME=https://github.com/gnulag/circ/ \
 CIRC_IDENT=circ \
-CIRC_SASL_ENABLED=false \
 CIRC_AUTH_USER=circ \
 CIRC_AUTH_PASS=circ \
 CIRC_CHANNEL=#gnulag \
-./circ
+./build/circ

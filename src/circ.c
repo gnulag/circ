@@ -34,9 +34,12 @@ main (int argc, char** argv)
 	char* realname = getenv ("CIRC_REALNAME");
 	char* sasl_enabled = getenv ("CIRC_SASL_ENABLED");
 
+
+
+
 	log_info ("setting up connection\n");
 	int ret = irc_server_connect (&s);
-	if (ret == -1 || errno) {
+	if (ret == -1) {
 		err (1, "Error Connecting");
 	}
 	log_info ("connection setup\n");
@@ -48,7 +51,10 @@ main (int argc, char** argv)
 	g_ptr_array_add (nick_params, g_strdup (nick));
 	IrciumMessage* nick_cmd =
 	  ircium_message_new (NULL, NULL, "NICK", nick_params);
-	ret |= irc_write_message (&s, nick_cmd);
+    if (irc_write_message (&s, nick_cmd) == -1) {
+        perror ("client: nick_cmd");
+        exit (EXIT_FAILURE);
+    }
 
 	g_free (g_ptr_array_free (nick_params, TRUE));
 
@@ -60,13 +66,13 @@ main (int argc, char** argv)
 	g_ptr_array_add (user_params, g_strdup (realname));
 	IrciumMessage* user_cmd =
 	  ircium_message_new (NULL, NULL, "USER", user_params);
-	ret |= irc_write_message (&s, user_cmd);
+    if (irc_write_message (&s, user_cmd) == -1) {
+        perror ("client: user_cmd");
+        exit (EXIT_FAILURE);
+    }
 
 	g_free (g_ptr_array_free (user_params, TRUE));
 
-	if (ret == -1 || errno) {
-		err (1, "Error Setting Nick");
-	}
 	log_info ("sent nick/user info\n");
 
 	/* If we want to do sasl auth we need to request
@@ -80,7 +86,7 @@ main (int argc, char** argv)
 		g_ptr_array_add (cap_params, g_strdup ("sasl"));
 		IrciumMessage* cap_cmd =
 		  ircium_message_new (NULL, NULL, "CAP", cap_params);
-		ret |= irc_write_message (&s, cap_cmd);
+		int ret = irc_write_message (&s, cap_cmd);
 		g_free (g_ptr_array_free (cap_params, TRUE));
 
 		GPtrArray* auth_params = g_ptr_array_new_full (1, g_free);
@@ -94,25 +100,7 @@ main (int argc, char** argv)
 	/* Init Event Loop handels auth via sasl and breaks on
 	 * receiving either a MODE or WELCOME message.
 	 */
-	irc_do_init_event_loop (&s);
-
-	/* Once the init loop breaks we join our predefined channels */
-	char* channel = getenv ("CIRC_CHANNEL");
-	log_info ("channel: %s \n", channel);
-
-	GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
-	g_ptr_array_add (join_params, channel);
-	IrciumMessage* join_cmd =
-	  ircium_message_new (NULL, NULL, "JOIN", join_params);
-	ret |= irc_write_message (&s, join_cmd);
-
-	if (ret == -1) {
-		err (1, "Error while Joining Channels");
-	}
-
-	/* Enter the main loop that handles the modules/plugins */
-	log_info ("entering main loop\n");
-	irc_do_event_loop (&s);
+    irc_do_event_loop (&s);
 
 	return 0;
 }
