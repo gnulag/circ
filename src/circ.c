@@ -16,26 +16,27 @@ int
 main (int argc, char** argv)
 {
 	bool is_secure;
-	if (get_config_value (CONFIG_KEY_STRING[2]) == "true") {
+	char *is_secure_str = getenv ("CIRC_SSL");
+	if (is_secure_str != NULL && strncmp (is_secure_str, "true", 4) == 0) {
 		is_secure = true;
 	} else {
 		is_secure = false;
 	}
 
-	irc_server s = { "Snoonet",
-		             get_config_value (CONFIG_KEY_STRING[0]),
-		             get_config_value (CONFIG_KEY_STRING[1]),
+	irc_server s = { getenv ("CIRC_SERVER_NAME"),
+		             getenv ("CIRC_SERVER_HOST"),
+		             getenv ("CIRC_SERVER_PORT"),
 		             NULL,
 		             is_secure };
 
-	char* nick = get_config_value (CONFIG_KEY_STRING[3]);
-	char* ident = get_config_value (CONFIG_KEY_STRING[4]);
-	char* realname = get_config_value (CONFIG_KEY_STRING[5]);
-	char* sasl_enabled = get_config_value (CONFIG_KEY_STRING[6]);
+	char* nick = getenv ("CIRC_NICK");
+	char* ident = getenv ("CIRC_IDENT");
+	char* realname = getenv ("CIRC_REALNAME");
+	char* sasl_enabled = getenv ("CIRC_SASL_ENABLED");
 
 	log_info ("setting up connection\n");
 	int ret = irc_server_connect (&s);
-	if (ret == -1) {
+	if (ret == -1 || errno) {
 		err (1, "Error Connecting");
 	}
 	log_info ("connection setup\n");
@@ -72,7 +73,7 @@ main (int argc, char** argv)
 	 * the sasl capability and initialize the plain auth process
 	 * after this the init event loop takes over doing the actual auth
      */
-	if (getenv (CONFIG_KEY_STRING[6])) {
+	if (sasl_enabled && strncmp(sasl_enabled, "true", 4) == 0) {
 		log_info ("Doing SASL Auth\n");
 		GPtrArray* cap_params = g_ptr_array_new_full (2, g_free);
 		g_ptr_array_add (cap_params, g_strdup ("REQ"));
@@ -96,7 +97,7 @@ main (int argc, char** argv)
 	irc_do_init_event_loop (&s);
 
 	/* Once the init loop breaks we join our predefined channels */
-	char* channel = get_config_value (CONFIG_KEY_STRING[9]);
+	char* channel = getenv ("CIRC_CHANNEL");
 	log_info ("channel: %s \n", channel);
 
 	GPtrArray* join_params = g_ptr_array_new_full (1, g_free);

@@ -29,8 +29,6 @@ typedef struct
 	gnutls_session_t tls_session;
 	int socket;
 	ev_io ev_watcher;
-	pthread_mutex_t ev_read_mtx;
-	pthread_mutex_t ev_write_mtx;
 } irc_connection;
 
 static void
@@ -90,8 +88,6 @@ irc_do_init_event_loop (const irc_server* s)
 
 	struct ev_loop* loop = EV_DEFAULT;
 
-	pthread_mutex_init (&conn->ev_read_mtx, NULL);
-	pthread_mutex_init (&conn->ev_write_mtx, NULL);
 	ev_io_init (
 	  &conn->ev_watcher, irc_init_loop_callback, conn->socket, EV_READ);
 	ev_io_start (loop, &conn->ev_watcher);
@@ -108,9 +104,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 	char buf[IRC_MESSAGE_SIZE];
 	memset (buf, 0, sizeof (buf));
 
-	pthread_mutex_lock (&conn->ev_read_mtx);
 	irc_read_message (conn->server, buf);
-	pthread_mutex_unlock (&conn->ev_read_mtx);
 
 	log_debug ("init loop: %s\n", buf);
 
@@ -134,9 +128,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 
 		IrciumMessage* pong_cmd =
 		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pong_cmd);
-		pthread_mutex_unlock (&conn->ev_write_mtx);
 
 		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
 
@@ -145,13 +137,15 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		}
 	}
 
-	if (getenv (CONFIG_KEY_STRING[6]) &&
+	char *sasl_enabled_str = getenv ("CIRC_SASL_ENABLED");
+	bool sasl_enabled = sasl_enabled_str && strncmp(sasl_enabled_str, "true", 4);
+	if (sasl_enabled &&
 	    strcmp (msg_command, "AUTHENTICATE") == 0 &&
 	    strcmp (msg_params->pdata[0], "+") == 0) {
 		/* When we receive "AUTHENTICATE +" we can send our user data
 		 */
-		char* auth_user = get_config_value (CONFIG_KEY_STRING[7]);
-		char* auth_pass = get_config_value (CONFIG_KEY_STRING[8]);
+		char* auth_user = getenv ("CIRC_AUTH_USER");
+		char* auth_pass = getenv ("CIRC_AUTH_PASS");
 
 		log_info ("Doing SASL Auth\n");
 
@@ -168,22 +162,19 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		IrciumMessage* pass_cmd =
 		  ircium_message_new (NULL, NULL, "AUTHENTICATE", pass_params);
 
-		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pass_cmd);
-		pthread_mutex_unlock (&conn->ev_write_mtx);
 
 		g_free (g_ptr_array_free (pass_params, TRUE));
 		g_free (auth_string);
-		g_free (auth_string_encoded);
-		g_free (auth_user);
-		g_free (auth_pass);
+		// g_free (auth_string_encoded);
+		// g_free (auth_user);
+		// g_free (auth_pass);
 
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
 
-	} else if (getenv (CONFIG_KEY_STRING[6]) &&
-	           strcmp (msg_command, "903") == 0) {
+	} else if (sasl_enabled && strcmp (msg_command, "903") == 0) {
 		/* Once we receive the 903 command we know the auth was successful.
 		 * to proceed we need to end the CAP phase
 		 */
@@ -192,17 +183,14 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		IrciumMessage* pass_cmd =
 		  ircium_message_new (NULL, NULL, "CAP", pass_params);
 
-		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pass_cmd);
-		pthread_mutex_unlock (&conn->ev_write_mtx);
 
 		g_free (g_ptr_array_free (pass_params, TRUE));
 
 		if (ret == -1) {
 			err (1, "Error during SASL Auth");
 		}
-	} else if (getenv (CONFIG_KEY_STRING[6]) &&
-	           strcmp (msg_command, "904") == 0) {
+	} else if (sasl_enabled && strcmp (msg_command, "904") == 0) {
 		err (1, "Error during SASL Auth");
 	}
 
@@ -223,8 +211,6 @@ irc_do_event_loop (const irc_server* s)
 
 	struct ev_loop* loop = EV_DEFAULT;
 
-	pthread_mutex_init (&conn->ev_read_mtx, NULL);
-	pthread_mutex_init (&conn->ev_write_mtx, NULL);
 	ev_io_init (&conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
 	ev_io_start (loop, &conn->ev_watcher);
 
@@ -243,9 +229,7 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 	char buf[IRC_MESSAGE_SIZE];
 	memset (buf, 0, sizeof (buf));
 
-	pthread_mutex_lock (&conn->ev_read_mtx);
 	irc_read_message (conn->server, buf);
-	pthread_mutex_unlock (&conn->ev_read_mtx);
 
 	log_debug ("main loop: %s\n", buf);
 
@@ -269,9 +253,7 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 
 		IrciumMessage* pong_cmd =
 		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		pthread_mutex_lock (&conn->ev_write_mtx);
 		int ret = irc_write_message (conn->server, pong_cmd);
-		pthread_mutex_unlock (&conn->ev_write_mtx);
 
 		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
 
@@ -418,9 +400,8 @@ encrypt_irc_connection (irc_connection* c)
 	int ret;
 	gnutls_certificate_credentials_t creds;
 
-	/* Initialize the credentails */
+	/* Initialize the credentials */
 	gnutls_certificate_allocate_credentials (&creds);
-	gnutls_certificate_set_x509_system_trust (creds);
 
 	/* Initialize the session */
 	gnutls_init (&c->tls_session, GNUTLS_CLIENT | GNUTLS_NONBLOCK);
