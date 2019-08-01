@@ -513,12 +513,6 @@ irc_create_socket (const irc_server* s)
 		exit (EXIT_FAILURE);
 	}
 
-	ret = setnonblock (sock);
-	if (ret == -1 || errno) {
-		perror ("client: socket O_NONBLOCK");
-		exit (EXIT_FAILURE);
-	}
-
 	verify_socket (sock);
 	freeaddrinfo (ai_head);
 
@@ -537,6 +531,12 @@ setup_irc_connection (const irc_server* s, int sock)
 	if (s->use_TLS) {
 		log_debug ("Encrypting connection\n");
 		encrypt_irc_connection (c);
+	}
+
+	int ret = setnonblock (c->socket);
+	if (ret == -1 || errno) {
+		perror ("client: socket O_NONBLOCK");
+		exit (EXIT_FAILURE);
 	}
 
 	return 0;
