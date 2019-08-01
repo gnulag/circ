@@ -34,12 +34,9 @@ main (int argc, char** argv)
 	char* realname = getenv ("CIRC_REALNAME");
 	char* sasl_enabled = getenv ("CIRC_SASL_ENABLED");
 
-
-
-
 	log_info ("setting up connection\n");
 	int ret = irc_server_connect (&s);
-	if (ret == -1) {
+	if (ret == -1 || errno) {
 		err (1, "Error Connecting");
 	}
 	log_info ("connection setup\n");
