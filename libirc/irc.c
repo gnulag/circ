@@ -30,7 +30,7 @@
 typedef struct message_queue
 {
 	char* message;
-	struct message_queue* next;
+	struct message_queue *next;
 } message_queue;
 
 typedef struct
@@ -43,7 +43,7 @@ typedef struct
 	ev_io watcher;
 	ev_timer timer;
 	pthread_mutex_t queue_mtx;
-	message_queue* queue;
+	message_queue *queue;
 	ev_io ev_init_watcher;
 } irc_connection;
 
@@ -54,11 +54,11 @@ verify_socket (int sock);
 static void
 irc_loop_read_callback (EV_P_ ev_io* w, int re);
 static void
-irc_timeout_callback (EV_P_ ev_timer* w, int re);
+irc_timeout_callback(EV_P_ ev_timer* w, int re);
 static void
 irc_process_message_queue (irc_connection* conn);
 static void
-handle_message (irc_connection* conn, const char* message);
+handle_message (irc_connection* conn, const char *message);
 int
 irc_create_socket (irc_server*);
 int
@@ -159,9 +159,9 @@ irc_server_connect (void)
 	}
 
 	int ret = setup_irc_connection (config->server, sock);
-	if (ret == 1) {
+	if (ret == 1)
 		err (1, "failed creating connection");
-	} else if (ret != 0) {
+	else if (ret != 0) {
 		perror ("client: could not connect");
 		exit (EXIT_FAILURE);
 	}
@@ -253,13 +253,12 @@ irc_process_message_queue (irc_connection* conn)
 static void
 handle_message (irc_connection* conn, const char* message)
 {
-	GByteArray* gbuf = NULL;
 	size_t msg_len = strlen (message);
+
 	if (msg_len == 0)
 		return;
 
-	while (gbuf == NULL)
-		gbuf = g_byte_array_new ();
+	GByteArray *gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
 	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 	const char* command = ircium_message_get_command (parsed_message);
@@ -366,7 +365,7 @@ irc_create_socket (irc_server* s)
 	hints.ai_socktype = SOCK_STREAM;
 	ret = getaddrinfo (s->host, s->port, &hints, &ai);
 	ai_head = ai;
-	if (ret != 0) {
+	if (!ret) {
 		perror ("client: address");
 		exit (EXIT_FAILURE);
 	}
@@ -391,6 +390,7 @@ irc_create_socket (irc_server* s)
 	}
 
 	freeaddrinfo (ai_head);
+
 	return sock;
 }
 
@@ -460,6 +460,7 @@ create_irc_connection (irc_server* s, int sock)
 	c->socket = sock;
 	c->queue = NULL;
 	pthread_mutex_init (&c->queue_mtx, NULL);
+
 	return c;
 }
 
