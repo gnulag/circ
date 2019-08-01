@@ -24,19 +24,38 @@
 
 #define IRC_MESSAGE_SIZE 8192 // IRCv3 message size + 1 for '\0'
 
+typedef struct message_queue
+{
+	char* message;
+	struct message_queue *next;
+} message_queue;
+
 typedef struct
 {
 	const irc_server* server;
 	gnutls_session_t tls_session;
 	int socket;
+	ev_io watcher;
+	ev_timer timer;
+	pthread_mutex_t queue_mtx;
+	message_queue *queue;
 	ev_io ev_init_watcher;
-	ev_io ev_watcher;
 } irc_connection;
 
+int
+setnonblock (int fd);
+int
+verify_socket (int sock);
 static void
 irc_init_loop_callback (EV_P_ ev_io* w, int re);
 static void
-irc_loop_callback (EV_P_ ev_io* w, int re);
+irc_loop_read_callback (EV_P_ ev_io* w, int re);
+static void
+irc_timeout_callback(EV_P_ ev_timer* w, int re);
+static void
+irc_process_message_queue (irc_connection* conn);
+static void
+handle_message (irc_connection* conn, const char *message);
 int
 irc_create_socket (const irc_server*);
 int
@@ -73,7 +92,7 @@ setnonblock (int fd)
 
 /* Check if the socket is already Read- or Writeable */
 int
-check_socket (int sock)
+verify_socket (int sock)
 {
 	struct timeval tv;
 	fd_set readfds, writefds;
@@ -85,7 +104,7 @@ check_socket (int sock)
 	puts ("check write\n");
 	tv.tv_sec = 10;
 	tv.tv_usec = 500000;
-	int rv = select (sock + 1, &readfds, &writefds, NULL, &tv);
+	int rv = select (sock, &readfds, &writefds, NULL, &tv);
 
 	if (rv == -1) {
 		perror ("client: connect failed");
@@ -96,7 +115,7 @@ check_socket (int sock)
 	}
 
 	if (FD_ISSET (sock, &writefds) || FD_ISSET (sock, &readfds)) {
-		int len = sizeof (error);
+		socklen_t len = sizeof (error);
 		if (getsockopt (sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
 			perror ("client: socket not writeable");
 			exit (EXIT_FAILURE);
@@ -105,6 +124,8 @@ check_socket (int sock)
 		perror ("client: select error: sock not set");
 		exit (EXIT_FAILURE);
 	}
+
+	return 0;
 }
 
 /*
@@ -129,12 +150,12 @@ irc_server_connect (const irc_server* s)
 	}
 
 	int sock = irc_create_socket (s);
-	if (sock == -1) {
+	if (sock == -1 || errno) {
 		err (1, "failed creating socket");
 	}
 
 	int ret = setup_irc_connection (s, sock);
-	if (ret == 1) {
+	if (ret == 1 || errno) {
 		err (1, "failed creating connection");
 	} else if (ret != 0) {
 		perror ("client: could not connect");
@@ -158,7 +179,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
+	gbuf = g_byte_array_append (gbuf, (guint8* )buf, sizeof (buf));
 	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 
 	g_byte_array_free (gbuf, TRUE);
@@ -256,9 +277,8 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		}
 
 		ev_io_stop (EV_A_ w);
-		ev_io_init (
-		  &conn->ev_watcher, irc_loop_callback, conn->socket, EV_READ);
-		ev_io_start (EV_A_ & conn->ev_watcher);
+		ev_io_init (&conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
+		ev_io_start (EV_A_ & conn->watcher);
 	}
 }
 
@@ -267,6 +287,7 @@ void
 irc_do_event_loop (const irc_server* s)
 {
 	irc_connection* conn = get_irc_server_connection (s);
+	ev_timer timeout_watcher;
 
 	struct ev_loop* loop = EV_DEFAULT;
 
@@ -275,29 +296,72 @@ irc_do_event_loop (const irc_server* s)
 	 * After that is finished the init loop stops the watcher
 	 * and starts it again with the main callback.
 	 */
-	ev_io_init (
-	  &conn->ev_watcher, irc_init_loop_callback, conn->socket, EV_READ);
-	ev_io_start (loop, &conn->ev_watcher);
+	ev_io_init (&conn->watcher, irc_init_loop_callback, conn->socket, EV_READ);
+	ev_io_start (loop, &conn->watcher);
 
-	ev_run (loop, 0);
+	ev_timer_init (&timeout_watcher, irc_timeout_callback, 6, 0);
+	ev_timer_start (loop, &timeout_watcher);
+
+	while (true) {
+		ev_run (loop, EVRUN_ONCE);
+		irc_process_message_queue (conn);
+	}
 }
 
-/* irc_loop_callback handles a single IRC message synchronously */
+/* irc_loop_read_callback handles a single IRC message synchronously */
 static void
-irc_loop_callback (EV_P_ ev_io* w, int re)
+irc_loop_read_callback (EV_P_ ev_io* w, int re)
 {
 	irc_connection* conn = get_irc_connection_from_watcher (w);
-
-	char buf[IRC_MESSAGE_SIZE];
-	memset (buf, 0, sizeof (buf));
-
+	char* buf = malloc(IRC_MESSAGE_SIZE);
+	memset (buf, 0, IRC_MESSAGE_SIZE);
 	irc_read_message (conn->server, buf);
-
 	log_debug ("main loop: %s\n", buf);
 
+	pthread_mutex_lock(&conn->queue_mtx);
+	message_queue* mq = conn->queue;
+	if (mq == NULL) {
+		conn->queue = malloc(sizeof(message_queue));
+		conn->queue->next = NULL;
+	} else {
+		while (mq->next != NULL)
+			mq = mq->next;
+
+		mq->next = malloc(sizeof(conn->queue));
+		mq->next->next = NULL;
+	}
+	pthread_mutex_unlock(&conn->queue_mtx);
+
+	ev_break (EV_A_ EVBREAK_ALL);
+}
+
+static void
+irc_timeout_callback(EV_P_ ev_timer* w, int re)
+{
+	ev_break (EV_A_ EVBREAK_ONE);
+}
+
+static void
+irc_process_message_queue (irc_connection* conn)
+{
+	message_queue* next;
+	while (conn->queue != NULL) {
+		handle_message(conn, conn->queue->message);
+		next = conn->queue->next;
+		pthread_mutex_lock(&conn->queue_mtx);
+		// free(conn->queue->message);
+		free(conn->queue);
+		conn->queue = next;
+		pthread_mutex_unlock(&conn->queue_mtx);
+	}
+}
+
+static void
+handle_message (irc_connection* conn, const char *message)
+{
 	GByteArray* gbuf;
 	gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, buf, sizeof (buf));
+	gbuf = g_byte_array_append (gbuf, (guint8* )message, strlen (message));
 	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 
 	g_byte_array_free (gbuf, TRUE);
@@ -325,11 +389,9 @@ irc_loop_callback (EV_P_ ev_io* w, int re)
 	}
 
 	// to_modules should return a list of responses for each matching module
-	//	messages = to_modules(buf);
-	//	pthread_mutex_lock (&conn->ev_write_mtx);
+	//	messages = to_modules(message);
 	//	for (i = 0; messages[i] != NULL; i++)
 	//		irc_write_bytes(ev_serv, messages[i]);
-	//	pthread_mutex_unlock (&conn->ev_write_mtx);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
@@ -415,43 +477,44 @@ int
 irc_create_socket (const irc_server* s)
 {
 	int ret, sock = -1;
-	struct addrinfo *ai, hints;
+	struct addrinfo *ai = NULL, *ai_head, hints;
 
-	memset (&hints, 0, sizeof hints);
+	memset (&hints, 0, sizeof (hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	ret = getaddrinfo (s->host, s->port, &hints, &ai);
-	if (ret == -1) {
+	ai_head = ai;
+	if (ret) {
 		perror ("client: address");
 		exit (EXIT_FAILURE);
 	}
 
 	/* Try the address info until we get a valid socket */
 	int conn = -1;
-	while (conn == -1 && (ai = ai->ai_next) != NULL) {
+	while (conn == -1 && ai != NULL) {
 		sock = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if (sock == -1) {
 			perror ("client: socket");
 			exit (EXIT_FAILURE);
 		}
 
-		ret = setnonblock (sock);
-		if (ret == -1) {
-			perror ("client: socket O_NONBLOCK");
-			exit (EXIT_FAILURE);
-		}
-
 		/* [> We have a valid socket. Setup the connection <] */
 		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (conn == -1 && errno != EINPROGRESS) {
+		if (conn == -1 || errno) {
 			close (sock);
 			conn = -1;
+			ai = ai->ai_next;
+			errno = 0;
 		}
 	}
 
-	check_socket (sock);
-	freeaddrinfo (ai);
+	if (sock == -1) {
+		perror ("client: socket");
+		exit (EXIT_FAILURE);
+	}
 
+	verify_socket (sock);
+	freeaddrinfo (ai_head);
 	return sock;
 }
 
@@ -467,6 +530,12 @@ setup_irc_connection (const irc_server* s, int sock)
 	if (s->use_TLS) {
 		log_debug ("Encrypting connection\n");
 		encrypt_irc_connection (c);
+	}
+
+	int ret = setnonblock (c->socket);
+	if (ret == -1 || errno) {
+		perror ("client: socket O_NONBLOCK");
+		exit (EXIT_FAILURE);
 	}
 
 	return 0;
@@ -511,6 +580,8 @@ create_irc_connection (const irc_server* s, int sock)
 
 	c->server = s;
 	c->socket = sock;
+	c->queue = NULL;
+	pthread_mutex_init(&c->queue_mtx, NULL);
 	return c;
 }
 
@@ -551,7 +622,7 @@ get_irc_connection_from_watcher (const ev_io* w)
 {
 	int i;
 	for (i = 0; conns[i] != NULL; i++) {
-		if (w == &conns[i]->ev_watcher)
+		if (w == &conns[i]->watcher)
 			return conns[i];
 	}
 
