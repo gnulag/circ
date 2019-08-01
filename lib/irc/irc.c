@@ -42,6 +42,10 @@ typedef struct
 	ev_io ev_init_watcher;
 } irc_connection;
 
+int
+setnonblock (int fd);
+int
+verify_socket (int sock);
 static void
 irc_init_loop_callback (EV_P_ ev_io* w, int re);
 static void
@@ -90,7 +94,7 @@ setnonblock (int fd)
 
 /* Check if the socket is already Read- or Writeable */
 int
-check_socket (int sock)
+verify_socket (int sock)
 {
 	struct timeval tv;
 	fd_set readfds, writefds;
@@ -102,7 +106,7 @@ check_socket (int sock)
 	puts ("check write\n");
 	tv.tv_sec = 10;
 	tv.tv_usec = 500000;
-	int rv = select (sock + 1, &readfds, &writefds, NULL, &tv);
+	int rv = select (sock, &readfds, &writefds, NULL, &tv);
 
 	if (rv == -1) {
 		perror ("client: connect failed");
@@ -148,12 +152,12 @@ irc_server_connect (const irc_server* s)
 	}
 
 	int sock = irc_create_socket (s);
-	if (sock == -1) {
+	if (sock == -1 || errno) {
 		err (1, "failed creating socket");
 	}
 
 	int ret = setup_irc_connection (s, sock);
-	if (ret == 1) {
+	if (ret == 1 || errno) {
 		err (1, "failed creating connection");
 	} else if (ret != 0) {
 		perror ("client: could not connect");
@@ -275,8 +279,7 @@ irc_init_loop_callback (EV_P_ ev_io* w, int re)
 		}
 
 		ev_io_stop (EV_A_ w);
-		ev_io_init (
-		  &conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
+		ev_io_init (&conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
 		ev_io_start (EV_A_ & conn->watcher);
 	}
 }
@@ -478,42 +481,46 @@ int
 irc_create_socket (const irc_server* s)
 {
 	int ret, sock = -1;
-	struct addrinfo *ai, hints;
+	struct addrinfo *ai = NULL, *ai_head, hints;
 
-	memset (&hints, 0, sizeof hints);
+	memset (&hints, 0, sizeof (hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	ret = getaddrinfo (s->host, s->port, &hints, &ai);
-	if (ret == -1) {
+	ai_head = ai;
+	if (ret) {
 		perror ("client: address");
 		exit (EXIT_FAILURE);
 	}
 
 	/* Try the address info until we get a valid socket */
 	int conn = -1;
-	while (conn == -1 && (ai = ai->ai_next) != NULL) {
+	while (conn == -1 && ai != NULL) {
 		sock = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-		if (sock == -1) {
-			perror ("client: socket");
-			exit (EXIT_FAILURE);
-		}
-
-		ret = setnonblock (sock);
-		if (ret == -1) {
-			perror ("client: socket O_NONBLOCK");
-			exit (EXIT_FAILURE);
-		}
 
 		/* [> We have a valid socket. Setup the connection <] */
 		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (conn == -1 && errno != EINPROGRESS) {
+		if (conn == -1 || errno) {
 			close (sock);
 			conn = -1;
+			ai = ai->ai_next;
+			errno = 0;
 		}
 	}
 
-	check_socket (sock);
-	freeaddrinfo (ai);
+	if (sock == -1) {
+		perror ("client: socket");
+		exit (EXIT_FAILURE);
+	}
+
+	ret = setnonblock (sock);
+	if (ret == -1 || errno) {
+		perror ("client: socket O_NONBLOCK");
+		exit (EXIT_FAILURE);
+	}
+
+	verify_socket (sock);
+	freeaddrinfo (ai_head);
 
 	return sock;
 }
