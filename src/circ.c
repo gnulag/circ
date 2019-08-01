@@ -12,6 +12,9 @@
 #include "b64/b64.h"
 #include "irc-parser/ircium-message.h"
 
+#include <glib.h>
+
+
 int
 main (int argc, char** argv)
 {
@@ -25,12 +28,37 @@ main (int argc, char** argv)
 
 	init_hooks ();
 	register_core_hooks ();
+    
+    /* config = { */
+        /* .server_name = "default", */
+        /* .server_host = "localhost", */
+        /* .server_port = "6667", */
+        /* .server_ssl = false, */
+        /* .nickname = "circ", */
+        /* .ident = "circ", */
+        /* .realname = "https://github.com/gnulag/circ", */
+        /* .sasl_enabled = false, */
+        /* .sasl_user = "", */
+        /* .sasl_pass = "", */
+        /* .channels[0] = "#gnulag" */
+    /* }; */
 
-	irc_server s = { getenv ("CIRC_SERVER_NAME"),
-		             getenv ("CIRC_SERVER_HOST"),
-		             getenv ("CIRC_SERVER_PORT"),
+    struct ConfigType* config;
+    config = malloc (sizeof(ConfigType*));
+    const char *config_file_path = "./config.json";
+    parse_config (config_file_path, config);
+
+    log_debug ("-----\nConnecting to server: %s\nHost: %s\nPort: %s\nSSL: %u\n-----\n",
+            config->server->name,
+            config->server->host,
+            config->server->port,
+            config->server->secure);
+
+	irc_server s = { config->server->name,
+		             config->server->host,
+		             config->server->port,
 		             NULL,
-		             is_secure };
+		             config->server->secure };
 
 	char* sasl_enabled = getenv ("CIRC_SASL_ENABLED");
 
