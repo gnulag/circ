@@ -1,4 +1,6 @@
 #include <glib.h>
+#include <stdio.h>
+
 #include "hooks.h"
 
 static GHashTable *hooks;
@@ -8,9 +10,9 @@ g_free_irc_hook (gpointer hook);
 void
 free_irc_hook (irc_hook *hook);
 irc_hook *
-create_irc_hook (char *command, circ_module *mod);
+create_irc_hook (const char *command, void (*f) (const irc_server *, IrciumMessage *));
 static irc_hook *
-get_hooks_private (char *command);
+get_hooks_private (const char *command);
 static gboolean
 command_strings_equal(gconstpointer a, gconstpointer b);
 
@@ -49,24 +51,26 @@ free_irc_hook (irc_hook *hook)
 }
 
 irc_hook *
-create_irc_hook (char *command, circ_module *mod)
+create_irc_hook (const char *command, void (*f) (const irc_server *, IrciumMessage *))
 {
 	irc_hook *hook = malloc (sizeof (irc_hook));
 	hook->command = strdup(command);
-	hook->mod = mod;
+	hook->entry = f;
 	hook->next = NULL;
 
 	return hook;
 }
 
 void
-add_hook (char *command, circ_module *mod)
+add_hook (const char *command, void (*f) (const irc_server *, IrciumMessage *))
 {
-	irc_hook *hook = create_irc_hook (command, mod);
+	irc_hook *hook = create_irc_hook (command, f);
 	irc_hook *head = get_hooks_private (command);
-	if (hooks == NULL)
-		g_hash_table_insert(hooks, command, hook);
-	else {
+	if (head == NULL) {
+		g_hash_table_insert(hooks, hook->command, hook);
+	} else if (head == NULL) {
+		head = hook;
+	} else {
 		while (head->next != NULL)
 			head = head->next;
 		head->next = hook;
@@ -74,13 +78,27 @@ add_hook (char *command, circ_module *mod)
 }
 
 static irc_hook *
-get_hooks_private (char *command)
+get_hooks_private (const char *command)
 {
 	return (irc_hook *)g_hash_table_lookup(hooks, command);
 }
 
 const irc_hook *
-get_hooks (char *command)
+get_hooks (const char *command)
 {
 	return get_hooks_private (command);
+}
+
+void
+exec_hooks (const irc_server *s, IrciumMessage *msg)
+{
+	const irc_hook *hook;
+	const char *command;
+	if (msg == NULL)
+		command = "PREINIT";
+	else
+		ircium_message_get_command(msg);
+
+	for (hook = get_hooks (command); hook != NULL; hook = hook->next)
+		hook->entry(s, msg);
 }

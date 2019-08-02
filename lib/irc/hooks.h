@@ -1,14 +1,17 @@
-#include "../modules/module.h"
+#include "irc-parser/ircium-message.h"
+#include "irc.h"
 
 typedef struct irc_hook {
 	char *command;
-	circ_module *mod;
+	void (*entry) (const irc_server *, IrciumMessage *msg);
 	struct irc_hook *next;
 } irc_hook;
 
 void
 init_hooks (void);
 void
-add_hook (char *command, circ_module *mod);
+add_hook (const char *command, void (*f) (const irc_server *, IrciumMessage *));
 const irc_hook *
-get_hooks (char *command);
+get_hooks (const char *command);
+void
+exec_hooks (const irc_server *s, IrciumMessage *msg);

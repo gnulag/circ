@@ -2,8 +2,8 @@
 #define IRC_H
 
 #include "ircium-parser/ircium-message.h"
-#include <glib.h>
 #include <stdbool.h>
+#include <glib.h>
 
 typedef struct irc_user
 {

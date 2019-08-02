@@ -279,9 +279,7 @@ irc_read_message (irc_server* s, char buf[IRC_MESSAGE_SIZE])
 	if (c == NULL)
 		return -1;
 
-	for (i = 0;
-	     buf[i - 2] != '\r' && buf[i - 1] != '\n' && i < IRC_MESSAGE_SIZE - 1;
-	     i++) {
+	for (i = 0; buf[i - 2] != '\r' && buf[i - 1] != '\n' && i < IRC_MESSAGE_SIZE - 1; i++) {
 		n = irc_read_bytes (s, buf + i, 1);
 	}
 
