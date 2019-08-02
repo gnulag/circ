@@ -15,7 +15,7 @@
 
 #include <glib.h>
 
-#include "irc.h"
+#include "hooks.h"
 
 #include "b64/b64.h"
 #include "config/config.h"
@@ -322,12 +322,14 @@ irc_loop_read_callback (EV_P_ ev_io* w, int re)
 	message_queue* mq = conn->queue;
 	if (mq == NULL) {
 		conn->queue = malloc(sizeof(message_queue));
+		conn->queue->message = buf;
 		conn->queue->next = NULL;
 	} else {
 		while (mq->next != NULL)
 			mq = mq->next;
 
 		mq->next = malloc(sizeof(conn->queue));
+		mq->next->message = buf;
 		mq->next->next = NULL;
 	}
 	pthread_mutex_unlock(&conn->queue_mtx);
@@ -363,35 +365,7 @@ handle_message (irc_connection* conn, const char *message)
 	gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8* )message, strlen (message));
 	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
-
-	g_byte_array_free (gbuf, TRUE);
-
-	const char* msg_command = ircium_message_get_command (parsed_message);
-	const char* msg_source = ircium_message_get_source (parsed_message);
-	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
-	const GPtrArray* msg_tags;
-
-	/* Responds to PING request with the correct PONG so we don't get timeouted
-	 */
-	if (strstr (msg_command, "PING") != NULL) {
-		GPtrArray* msg_params_nonconst = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
-
-		IrciumMessage* pong_cmd =
-		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		int ret = irc_write_message (conn->server, pong_cmd);
-
-		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
-
-		if (ret == -1 || errno) {
-			err (1, "Error Responding to PING with PONG");
-		}
-	}
-
-	// to_modules should return a list of responses for each matching module
-	//	messages = to_modules(message);
-	//	for (i = 0; messages[i] != NULL; i++)
-	//		irc_write_bytes(ev_serv, messages[i]);
+	exec_hooks(conn->server, parsed_message);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
@@ -405,9 +379,12 @@ irc_read_message (const irc_server* s, char buf[IRC_MESSAGE_SIZE])
 	if (c == NULL)
 		return -1;
 
-	for (i = 0; buf[i - 2] != '\r' && buf[i] != '\n'; i++) {
+	for (i = 0; buf[i - 2] != '\r' && buf[i - 1] != '\n' && i < IRC_MESSAGE_SIZE - 1; i++) {
 		n = irc_read_bytes (s, buf + i, 1);
 	}
+
+	buf[i] = '\0';
+	buf[IRC_MESSAGE_SIZE - 1] = '\0';
 
 	return i;
 }
@@ -513,7 +490,7 @@ irc_create_socket (const irc_server* s)
 		exit (EXIT_FAILURE);
 	}
 
-	verify_socket (sock);
+//	verify_socket (sock);
 	freeaddrinfo (ai_head);
 	return sock;
 }

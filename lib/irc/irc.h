@@ -10,6 +10,8 @@ typedef struct {
 	bool use_TLS;		// Whether to use TLS
 } irc_server;
 
+void register_core_hooks (void);
+
 int irc_server_connect (const irc_server *);
 void irc_do_event_loop (const irc_server *);
 void irc_do_init_event_loop (const irc_server *);
