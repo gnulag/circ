@@ -36,7 +36,7 @@ main (int argc, char** argv)
 
 	log_info ("setting up connection\n");
 	int ret = irc_server_connect (&s);
-	if (ret == -1 || errno) {
+	if (ret == -1) {
 		err (1, "Error Connecting");
 	}
 	log_info ("connection setup\n");
