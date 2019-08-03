@@ -20,6 +20,7 @@ add_executable(circ
   "lib/config/config.h"
   "lib/cJSON/cJSON.c"
   "lib/cJSON/cJSON.h"
+  "lib/util/list.h"
   "lib/log/log.c"
   "lib/log/log.h"
   "lib/irc/irc.c"
