@@ -1,0 +1,28 @@
+#include <chibi/eval.h>
+#include "irc-parser/ircium-message.h"
+
+typedef struct mod_context {
+	const irc_server *serv;
+	const IrciumMessage *msg;
+} mod_context;
+
+typedef struct module
+{
+	int id;
+	char* path;
+	sexp scheme_ctx;
+	mod_context mod_ctx;
+	pthread_mutex_t mtx;
+	struct module* next;
+} module;
+
+void
+scheme_init (void);
+module*
+get_module_from_id(int id);
+void
+add_irc_hook (const char *command, sexp func, module *mod);
+void
+add_command_hook (const char *command, sexp func, module *mod);
+void
+define_foreign_functions (sexp ctx);

@@ -9,14 +9,6 @@
 
 #define MAX_COMMAND_SIZE 4096
 
-typedef struct module
-{
-	char* path;
-	sexp scheme_ctx;
-	pthread_mutex_t mtx;
-	struct module* next;
-} module;
-
 typedef struct mod_entry
 {
 	module* mod;
@@ -24,6 +16,7 @@ typedef struct mod_entry
 	struct mod_entry* next;
 } mod_entry;
 
+static int mod_ids;
 static module* module_list;
 
 /*
@@ -50,7 +43,7 @@ exec_command_hooks (const irc_server *s, const IrciumMessage *msg);
 sexp
 garr_to_scheme_list (sexp ctx, const GPtrArray* arr, int index);
 static void
-scheme_run_module_entry (const mod_entry* me,
+scheme_run_module_entry (mod_entry* me,
                          const irc_server* s,
                          const IrciumMessage* msg);
 static void
@@ -68,20 +61,20 @@ scheme_entry (const irc_server* s, const IrciumMessage* msg)
 }
 
 void
-add_irc_hook (char *command, sexp func, module *mod)
+add_irc_hook (const char *command, sexp func, module *mod)
 {
 	mod_entry *me = malloc(sizeof(mod_entry));
 	me->mod = mod;
 	me->func = func;
 	me->next = NULL;
-	g_hash_table_insert(irc_hooks, command, me);
+	g_hash_table_insert(irc_hooks, strdup(command), me);
 }
 
 static void
 exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
 {
 	const char* irc_cmd = ircium_message_get_command (msg);
-	const mod_entry* me = g_hash_table_lookup (irc_hooks, irc_cmd);
+	mod_entry* me = g_hash_table_lookup (irc_hooks, irc_cmd);
 	if (me == NULL)
 		return;
 
@@ -90,13 +83,13 @@ exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
 }
 
 void
-add_command_hook (char *command, sexp func, module *mod)
+add_command_hook (const char *command, sexp func, module *mod)
 {
 	mod_entry *me = malloc(sizeof(mod_entry));
 	me->mod = mod;
 	me->func = func;
 	me->next = NULL;
-	g_hash_table_insert(command_hooks, command, me);
+	g_hash_table_insert(command_hooks, strdup(command), me);
 }
 
 static void
@@ -121,7 +114,7 @@ exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 		cmd[j++] = text[i++];
 	cmd[j] = '\0';
 
-	const mod_entry* me = g_hash_table_lookup (irc_hooks, cmd);
+	mod_entry* me = g_hash_table_lookup (irc_hooks, cmd);
 	if (me == NULL)
 		return;
 
@@ -129,53 +122,19 @@ exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 		scheme_run_module_entry (me, s, msg);
 }
 
-sexp
-garr_to_scheme_list (sexp ctx, const GPtrArray* arr, int index)
-{
-	sexp_gc_var1 (list);
-	if (index < arr->len)
-		list = sexp_cons (ctx,
-		                  g_ptr_array_index (arr, index),
-		                  garr_to_scheme_list (ctx, arr, index + 1));
-	else
-		return SEXP_NULL;
-}
-
 static void
-scheme_run_module_entry (const mod_entry* me,
+scheme_run_module_entry (mod_entry* me,
                          const irc_server* s,
                          const IrciumMessage* msg)
 {
-	int i;
-	sexp servname, source, command, params, tags;
-	sexp servname_sym, source_sym, command_sym, params_sym, tags_sym;
-
 	sexp ctx = me->mod->scheme_ctx;
-
-	/* Put important information in the module's namespace */
-	servname = sexp_c_string (ctx, irc_get_server_name (s), -1);
-	servname_sym = sexp_intern (ctx, "server-name", -1);
-	source = sexp_c_string (ctx, ircium_message_get_source (msg), -1);
-	source_sym = sexp_intern (ctx, "message-source", -1);
-	command = sexp_c_string (ctx, ircium_message_get_command (msg), -1);
-	command_sym = sexp_intern (ctx, "message-command", -1);
-	params = garr_to_scheme_list (ctx, ircium_message_get_params (msg), 0);
-	params_sym = sexp_intern (ctx, "message-params", -1);
-	tags = garr_to_scheme_list (ctx, ircium_message_get_tags (msg), 0);
-	tags_sym = sexp_intern (ctx, "message-tags", -1);
+	sexp id = sexp_make_integer(ctx, me->mod->id);
+	sexp id_sym = sexp_intern(ctx, "circ-module-id", -1);
 
 	pthread_mutex_lock (&me->mod->mtx);
-
-#define DEF_SCHEME_VAR(sym, val)                                               \
-	sexp_env_define (ctx, sexp_context_env (ctx), sym, val);
-	DEF_SCHEME_VAR (servname_sym, servname);
-	DEF_SCHEME_VAR (source_sym, source);
-	DEF_SCHEME_VAR (command_sym, command);
-	DEF_SCHEME_VAR (params_sym, params);
-	DEF_SCHEME_VAR (tags_sym, tags);
-
-	sexp_eval (ctx, me->func, sexp_context_env (ctx));
-
+	sexp_env_define(ctx, sexp_context_env (ctx), id_sym, id);
+	me->mod->mod_ctx.serv = s;
+	me->mod->mod_ctx.msg = msg;
 	pthread_mutex_unlock (&me->mod->mtx);
 }
 
@@ -226,20 +185,31 @@ static module*
 scheme_create_module (char* path)
 {
 	module* mod = malloc (sizeof (module));
+	mod->id = ++mod_ids;
 	mod->path = strdup (path);
 	pthread_mutex_init (&mod->mtx, NULL);
 
 	mod->scheme_ctx = sexp_make_eval_context (NULL, NULL, NULL, 0, 0);
-	sexp* ctx = &mod->scheme_ctx;
-	sexp_load_standard_env (*ctx, NULL, SEXP_SEVEN);
-	sexp_load_standard_ports (*ctx, NULL, stdin, stdout, stderr, 1);
+	sexp ctx = mod->scheme_ctx;
+	sexp_load_standard_env (ctx, NULL, SEXP_SEVEN);
+	sexp_load_standard_ports (ctx, NULL, stdin, stdout, stderr, 1);
+
+	define_foreign_functions (ctx);
 
 	sexp_gc_var1 (obj);
-	sexp_gc_preserve1 (*ctx, obj);
-	obj = sexp_c_string (*ctx, "lib/scheme/circ.ss", -1);
-	sexp_load (*ctx, obj, NULL);
-	obj = sexp_c_string (*ctx, path, -1);
-	sexp_load (*ctx, obj, NULL);
+	sexp_gc_preserve1 (ctx, obj);
+	obj = sexp_c_string (ctx, path, -1);
+	sexp_load (ctx, obj, NULL);
 
 	return mod;
+}
+
+module*
+get_module_from_id (int id)
+{
+	module* mod = module_list;
+	while ((mod = mod->next))
+		if (mod->id == id)
+			return mod;
+	return NULL;
 }
