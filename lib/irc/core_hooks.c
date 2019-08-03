@@ -121,25 +121,16 @@ channel_join_hook (const irc_server* s, const IrciumMessage* msg)
 	 */
     struct ConfigType *config = get_config();
 
-    log_debug ("Joining Channels: ");
+    log_debug ("Joining Channels: \n");
 
-    /* int i = 0; */
-    /* char *channels; */
-    /* char *sep = ","; */
-
-    /* struct ChannelType *l; */
-    /* LL_FOREACH (config->server->channels, l) { */
-        /* log_debug ("%s, ", l->channel); */
-        /* strcat (channels, sep); */
-        /* strcat (channels, l->channel); */
-    /* } */
-    /* log_debug ("\n"); */
-
-	GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
-	g_ptr_array_add (join_params, config->server->channel_string);
-	const IrciumMessage* join_cmd =
-	  ircium_message_new (NULL, NULL, "JOIN", join_params);
-	irc_write_message (s, join_cmd);
+    struct ChannelType *l;
+    LL_FOREACH (config->server->channels, l) {
+        GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
+        g_ptr_array_add (join_params, l->channel);
+        const IrciumMessage* join_cmd =
+          ircium_message_new (NULL, NULL, "JOIN", join_params);
+        irc_write_message (s, join_cmd);
+    }
 }
 
 static void
