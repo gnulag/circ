@@ -2,22 +2,21 @@
 #include <glib.h>
 #include <stdio.h>
 
-#include "../b64/b64.h"
-#include "../log/log.h"
+#include "b64/b64.h"
+#include "log/log.h"
 #include "hooks.h"
+#include "config/config.h"
+#include "util/list.h"
 
 static void
 register_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 {
-	char* nick = getenv ("CIRC_NICK");
-	char* ident = getenv ("CIRC_IDENT");
-	char* realname = getenv ("CIRC_REALNAME");
+    struct ConfigType *config = get_config();
 
-	puts ("Registering client...");
-
+	log_debug ("Registering client...\n");
 	/* Sends NICK */
 	GPtrArray* nick_params = g_ptr_array_new_full (1, g_free);
-	g_ptr_array_add (nick_params, g_strdup (nick));
+	g_ptr_array_add (nick_params, g_strdup (config->server->user->nickname));
 	const IrciumMessage* nick_cmd =
 	  ircium_message_new (NULL, NULL, "NICK", nick_params);
 	if (irc_write_message (s, nick_cmd) == -1) {
@@ -29,10 +28,10 @@ register_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 
 	/* Sends USER */
 	GPtrArray* user_params = g_ptr_array_new_full (4, g_free);
-	g_ptr_array_add (user_params, g_strdup (ident));
+	g_ptr_array_add (user_params, g_strdup (config->server->user->ident));
 	g_ptr_array_add (user_params, g_strdup ("0"));
 	g_ptr_array_add (user_params, g_strdup ("*"));
-	g_ptr_array_add (user_params, g_strdup (realname));
+	g_ptr_array_add (user_params, g_strdup (config->server->user->realname));
 	const IrciumMessage* user_cmd =
 	  ircium_message_new (NULL, NULL, "USER", user_params);
 	if (irc_write_message (s, user_cmd) == -1) {
@@ -65,8 +64,9 @@ sasl_auth_hook (const irc_server* s, const IrciumMessage* msg)
 {
 	/* When we receive "AUTHENTICATE +" we can send our user data
 	 */
-	char* auth_user = getenv ("CIRC_AUTH_USER");
-	char* auth_pass = getenv ("CIRC_AUTH_PASS");
+    struct ConfigType *config = get_config();
+	char* auth_user = config->server->user->sasl_user;
+	char* auth_pass = config->server->user->sasl_pass;
 
 	log_info ("Doing SASL Auth\n");
 
@@ -119,13 +119,24 @@ channel_join_hook (const irc_server* s, const IrciumMessage* msg)
 	 * message we know we are auth'ed and can exit the init loop.
 	 * Before that we JOIN the Channels
 	 */
-	char* channel = getenv ("CIRC_CHANNEL");
-	log_info ("channel: %s \n", channel);
+    struct ConfigType *config = get_config();
 
-	puts ("Joining channels");
+    log_debug ("Joining Channels: ");
+
+    /* int i = 0; */
+    /* char *channels; */
+    /* char *sep = ","; */
+
+    /* struct ChannelType *l; */
+    /* LL_FOREACH (config->server->channels, l) { */
+        /* log_debug ("%s, ", l->channel); */
+        /* strcat (channels, sep); */
+        /* strcat (channels, l->channel); */
+    /* } */
+    /* log_debug ("\n"); */
 
 	GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
-	g_ptr_array_add (join_params, channel);
+	g_ptr_array_add (join_params, config->server->channel_string);
 	const IrciumMessage* join_cmd =
 	  ircium_message_new (NULL, NULL, "JOIN", join_params);
 	irc_write_message (s, join_cmd);
@@ -164,16 +175,16 @@ invite_hook (const irc_server* s, const IrciumMessage* msg)
 void
 register_core_hooks ()
 {
-	char* sasl_str = getenv ("CIRC_SASL_ENABLED");
-	int sasl_enabled = sasl_str && strncmp (sasl_str, "true", 4) == 0;
+    struct ConfigType *config = get_config();
+
 	/* Handle SASL */
-	if (sasl_enabled) {
-		add_hook ("PREINIT", sasl_preinit_hook);
-		add_hook ("AUTHENTICATE", sasl_auth_hook);
-		add_hook ("900", sasl_cap_hook);
-		add_hook ("903", sasl_cap_hook);
-		add_hook ("904", sasl_error_hook);
-	}
+    if (config->server->user->sasl_enabled) {
+        add_hook ("PREINIT", sasl_preinit_hook);
+        add_hook ("AUTHENTICATE", sasl_auth_hook);
+        add_hook ("900", sasl_cap_hook);
+        add_hook ("903", sasl_cap_hook);
+        add_hook ("904", sasl_error_hook);
+    }
 
 	add_hook ("PREINIT", register_preinit_hook);
 	add_hook ("INVITE", invite_hook);

@@ -25,16 +25,6 @@ enum CONFIG_KEY_ENUM {
 static const char *CONFIG_KEY_STRING[] = {
   FOREACH_CONFIG_KEY(GENERATE_STRING)
 };
-||||||| merged common ancestors
-    char *server_name;
-    char *server_host;
-    char *server_port;
-    bool server_ssl;
-
-    struct user *user;
-
-    GArray *channels;
-} server;
 
 typedef struct module
 {
@@ -44,11 +34,6 @@ typedef struct module
     char *cwd;
     char *config;
 } module;
-=======
-    char *name;
-    char *host;
-    char *port;
-    bool secure;
 
 typedef struct UserType
 {
@@ -61,16 +46,21 @@ typedef struct UserType
     char *sasl_pass;
 } UserType;
 
+typedef struct ChannelType
+{
+    char channel[8000];
+    struct ChannelType *next;
+} ChannelType;
+
 typedef struct ServerType
 {
     char *name;
     char *host;
     char *port;
     bool secure;
-
-    struct user *user;
-
-    char *channels[];
+    struct UserType *user;
+    char *channel_string;
+    struct ChannelType *channels;
 } ServerType;
 
 typedef struct ModuleType
@@ -84,12 +74,14 @@ typedef struct ModuleType
 
 typedef struct ConfigType
 {
+    bool debug;
     struct ServerType *server;
     struct ModuleType *modules[];
 } ConfigType;
 
 // configstruct* config;
-int parse_config (const char *config_file_path, struct ConfigType* config);
+struct ConfigType* get_config();
+int parse_config (const char *config_file_path);
 char* get_config_value (const char* key);
 int get_config_length ();
 void print_config ();

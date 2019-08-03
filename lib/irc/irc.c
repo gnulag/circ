@@ -148,12 +148,12 @@ irc_server_connect (const irc_server* s)
 	}
 
 	int sock = irc_create_socket (s);
-	if (sock == -1 || errno) {
+	if (sock == -1) {
 		err (1, "failed creating socket");
 	}
 
 	int ret = setup_irc_connection (s, sock);
-	if (ret == 1 || errno) {
+	if (ret == 1) {
 		err (1, "failed creating connection");
 	} else if (ret != 0) {
 		perror ("client: could not connect");
@@ -366,7 +366,7 @@ irc_create_socket (const irc_server* s)
 
 		/* [> We have a valid socket. Setup the connection <] */
 		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (conn == -1 || errno) {
+		if (conn == -1) {
 			close (sock);
 			conn = -1;
 			ai = ai->ai_next;
