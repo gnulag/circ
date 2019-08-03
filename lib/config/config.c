@@ -173,16 +173,8 @@ parse_config (const char* config_file_path)
                 item = (ChannelType *)malloc(sizeof *item);
                 strcpy (item->channel, channel->valuestring);
                 LL_APPEND(config->server->channels, item);
-
-                if (channel_iter > 0)
-                    strcat (channel_string, ",");
-                strcat (channel_string, channel->valuestring);
-                channel_iter++;
 			} else
 				err (1, "config: channel is not a string");
-			
-            config->server->channel_string = malloc (sizeof (*channel_string));
-			strcpy (config->server->channel_string, channel_string);
 		}
 	} else {
 		err (1, "config: server is not an object");
