@@ -24,6 +24,7 @@ add_executable(circ ${CIRC_SOURCES})
 find_library(LIBEV_LIBS     NAMES ev           REQUIRED)
 find_library(LIBGNUTLS_LIBS NAMES gnutls       REQUIRED)
 find_package(GLIB           COMPONENTS gobject REQUIRED)
+find_library(LIBCHIBI_LIBS  NAMES chibi-scheme REQUIRED)
 
 target_include_directories(circ
 	PRIVATE src
@@ -31,13 +32,12 @@ target_include_directories(circ
 	PRIVATE ${GLIB_INCLUDE_DIRS}
 )
 
-target_link_libraries(
-	circ
+target_link_libraries(circ
 	irc
 	log
 	${LIBEV_LIBS}
 	${LIBGNUTLS_LIBS}
-
 	${GLIB_GOBJECT_LIBRARIES}
 	${GLIB_LIBRARIES}
+	${LIBCHIBI_LIBS}
 )
