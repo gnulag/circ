@@ -1,0 +1,28 @@
+{
+    "server": {
+        "name": "Snoonet",
+        "host": "irc.snoonet.org",
+        "port": "6697",
+        "secure": true,
+        "channels": [
+            "#gnulag"
+        ],
+        "user": {
+            "nickname": "circ",
+            "ident": "circ",
+            "realname": "circy",
+            "sasl_enabled": false,
+            "sasl_user": "circ",
+            "sasl_pass": "circ",
+        }
+    },
+    "modules": [
+        {
+            "name": "wolfram",
+            "matchers": ["^wa"],
+            "cmd": "wolfram",
+            "cwd": "~/.circ/plugins",
+        }
+    ]
+}
+
