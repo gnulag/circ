@@ -178,5 +178,5 @@ register_core_hooks ()
 	add_hook ("PREINIT", register_preinit_hook);
 	add_hook ("INVITE", invite_hook);
 	add_hook ("PING", ping_hook);
-	// add_hook ("001", channel_join_hook);
+	add_hook ("001", channel_join_hook);
 }
