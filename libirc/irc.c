@@ -30,7 +30,7 @@
 typedef struct message_queue
 {
 	char* message;
-	struct message_queue *next;
+	struct message_queue* next;
 } message_queue;
 
 typedef struct
@@ -43,7 +43,7 @@ typedef struct
 	ev_io watcher;
 	ev_timer timer;
 	pthread_mutex_t queue_mtx;
-	message_queue *queue;
+	message_queue* queue;
 	ev_io ev_init_watcher;
 } irc_connection;
 
@@ -54,11 +54,11 @@ verify_socket (int sock);
 static void
 irc_loop_read_callback (EV_P_ ev_io* w, int re);
 static void
-irc_timeout_callback(EV_P_ ev_timer* w, int re);
+irc_timeout_callback (EV_P_ ev_timer* w, int re);
 static void
 irc_process_message_queue (irc_connection* conn);
 static void
-handle_message (irc_connection* conn, const char *message);
+handle_message (irc_connection* conn, const char* message);
 int
 irc_create_socket (irc_server*);
 int
@@ -279,7 +279,9 @@ irc_read_message (irc_server* s, char buf[IRC_MESSAGE_SIZE])
 	if (c == NULL)
 		return -1;
 
-	for (i = 0; buf[i - 2] != '\r' && buf[i - 1] != '\n' && i < IRC_MESSAGE_SIZE - 1; i++) {
+	for (i = 0;
+	     buf[i - 2] != '\r' && buf[i - 1] != '\n' && i < IRC_MESSAGE_SIZE - 1;
+	     i++) {
 		n = irc_read_bytes (s, buf + i, 1);
 	}
 
@@ -379,7 +381,7 @@ irc_create_socket (irc_server* s)
 
 		/* [> We have a valid socket. Setup the connection <] */
 		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (conn == -1) {
+		if (conn == -1 || errno) {
 			close (sock);
 			conn = -1;
 			ai = ai->ai_next;
