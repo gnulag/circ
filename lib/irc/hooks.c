@@ -11,7 +11,7 @@ void
 free_irc_hook (irc_hook* hook);
 irc_hook*
 create_irc_hook (const char* command,
-                 void (*f) (const irc_server*, IrciumMessage*));
+                 void (*f) (const irc_server*, const IrciumMessage*));
 static irc_hook*
 get_hooks_private (const char* command);
 static gboolean
@@ -53,7 +53,7 @@ free_irc_hook (irc_hook* hook)
 
 irc_hook*
 create_irc_hook (const char* command,
-                 void (*f) (const irc_server*, IrciumMessage*))
+                 void (*f) (const irc_server*, const IrciumMessage*))
 {
 	irc_hook* hook = malloc (sizeof (irc_hook));
 	hook->command = strdup (command);
@@ -64,7 +64,7 @@ create_irc_hook (const char* command,
 }
 
 void
-add_hook (const char* command, void (*f) (const irc_server*, IrciumMessage*))
+add_hook (const char* command, void (*f) (const irc_server*, const IrciumMessage*))
 {
 	irc_hook* hook = create_irc_hook (command, f);
 	irc_hook* head = get_hooks_private (command);
@@ -92,7 +92,7 @@ get_hooks (const char* command)
 }
 
 void
-exec_hooks (const irc_server* s, IrciumMessage* msg)
+exec_hooks (const irc_server* s, const IrciumMessage* msg)
 {
 	const irc_hook* hook;
 	const char* command;
