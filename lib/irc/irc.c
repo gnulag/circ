@@ -15,7 +15,7 @@
 
 #include <glib.h>
 
-#include "irc.h"
+#include "hooks.h"
 
 #include "b64/b64.h"
 #include "config/config.h"
@@ -27,7 +27,7 @@
 typedef struct message_queue
 {
 	char* message;
-	struct message_queue *next;
+	struct message_queue* next;
 } message_queue;
 
 typedef struct
@@ -38,7 +38,7 @@ typedef struct
 	ev_io watcher;
 	ev_timer timer;
 	pthread_mutex_t queue_mtx;
-	message_queue *queue;
+	message_queue* queue;
 	ev_io ev_init_watcher;
 } irc_connection;
 
@@ -47,15 +47,13 @@ setnonblock (int fd);
 int
 verify_socket (int sock);
 static void
-irc_init_loop_callback (EV_P_ ev_io* w, int re);
-static void
 irc_loop_read_callback (EV_P_ ev_io* w, int re);
 static void
-irc_timeout_callback(EV_P_ ev_timer* w, int re);
+irc_timeout_callback (EV_P_ ev_timer* w, int re);
 static void
 irc_process_message_queue (irc_connection* conn);
 static void
-handle_message (irc_connection* conn, const char *message);
+handle_message (irc_connection* conn, const char* message);
 int
 irc_create_socket (const irc_server*);
 int
@@ -104,7 +102,7 @@ verify_socket (int sock)
 	puts ("check write\n");
 	tv.tv_sec = 10;
 	tv.tv_usec = 500000;
-	int rv = select (sock + 1, &readfds, &writefds, NULL, &tv);
+	int rv = select (sock, &readfds, &writefds, NULL, &tv);
 
 	if (rv == -1) {
 		perror ("client: connect failed");
@@ -115,7 +113,7 @@ verify_socket (int sock)
 	}
 
 	if (FD_ISSET (sock, &writefds) || FD_ISSET (sock, &readfds)) {
-		int len = sizeof (error);
+		socklen_t len = sizeof (error);
 		if (getsockopt (sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
 			perror ("client: socket not writeable");
 			exit (EXIT_FAILURE);
@@ -124,6 +122,8 @@ verify_socket (int sock)
 		perror ("client: select error: sock not set");
 		exit (EXIT_FAILURE);
 	}
+
+	return 0;
 }
 
 /*
@@ -148,12 +148,12 @@ irc_server_connect (const irc_server* s)
 	}
 
 	int sock = irc_create_socket (s);
-	if (sock == -1) {
+	if (sock == -1 || errno) {
 		err (1, "failed creating socket");
 	}
 
 	int ret = setup_irc_connection (s, sock);
-	if (ret == 1) {
+	if (ret == 1 || errno) {
 		err (1, "failed creating connection");
 	} else if (ret != 0) {
 		perror ("client: could not connect");
@@ -161,123 +161,6 @@ irc_server_connect (const irc_server* s)
 	}
 
 	return 0;
-}
-
-static void
-irc_init_loop_callback (EV_P_ ev_io* w, int re)
-{
-	irc_connection* conn = get_irc_connection_from_watcher (w);
-	
-    char buf[IRC_MESSAGE_SIZE];
-	memset (buf, 0, sizeof (buf));
-
-	irc_read_message (conn->server, buf);
-
-	log_debug ("init loop: %s\n", buf);
-
-	GByteArray* gbuf;
-	gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, (guint8* )buf, sizeof (buf));
-	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
-
-	g_byte_array_free (gbuf, TRUE);
-
-	const char* msg_command = ircium_message_get_command (parsed_message);
-	const char* msg_source = ircium_message_get_source (parsed_message);
-	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
-	const GPtrArray* msg_tags;
-
-	/* Responds to PING request with the correct PONG so we don't get timeouted
-	 */
-	if (strstr (msg_command, "PING") != NULL) {
-		GPtrArray* msg_params_nonconst = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
-
-		IrciumMessage* pong_cmd =
-		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		int ret = irc_write_message (conn->server, pong_cmd);
-
-		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
-
-		if (ret == -1) {
-			err (1, "Error Responding to PING with PONG");
-		}
-	}
-
-	char* sasl_enabled_str = getenv ("CIRC_SASL_ENABLED");
-	bool sasl_enabled =
-	  sasl_enabled_str && strncmp (sasl_enabled_str, "true", 4);
-	if (sasl_enabled == 0 && strcmp (msg_command, "AUTHENTICATE") == 0 &&
-	    strcmp (msg_params->pdata[0], "+") == 0) {
-		/* When we receive "AUTHENTICATE +" we can send our user data
-		 */
-		char* auth_user = getenv ("CIRC_AUTH_USER");
-		char* auth_pass = getenv ("CIRC_AUTH_PASS");
-
-		log_info ("Doing SASL Auth\n");
-
-		gchar* auth_string;
-		char nullchar = '\0';
-		auth_string = g_strdup_printf (
-		  "%s%c%s%c%s", auth_user, nullchar, auth_user, nullchar, auth_pass);
-
-		char* auth_string_encoded = b64_encode (
-		  auth_string, strlen (auth_user) * 2 + strlen (auth_pass) + 2);
-
-		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (pass_params, auth_string_encoded);
-		IrciumMessage* pass_cmd =
-		  ircium_message_new (NULL, NULL, "AUTHENTICATE", pass_params);
-
-		int ret = irc_write_message (conn->server, pass_cmd);
-
-		g_free (g_ptr_array_free (pass_params, TRUE));
-		g_free (auth_string);
-
-		if (ret == -1) {
-			err (1, "Error during SASL Auth");
-		}
-
-	} else if (sasl_enabled == 0 && (strcmp (msg_command, "900") == 0 ||
-	                                 strcmp (msg_command, "903") == 0)) {
-		/* Once we receive the 903 command we know the auth was successful.
-		 * to proceed we need to end the CAP phase
-		 */
-		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (pass_params, "END");
-		IrciumMessage* pass_cmd =
-		  ircium_message_new (NULL, NULL, "CAP", pass_params);
-
-		int ret = irc_write_message (conn->server, pass_cmd);
-
-		if (ret == -1) {
-			err (1, "Error during SASL Auth");
-		}
-	} else if (sasl_enabled == 0 && strcmp (msg_command, "904") == 0) {
-		err (1, "Error during SASL Auth");
-	} else if (strcmp (msg_command, "MODE") == 0 ||
-	           strcmp (msg_command, "001") == 0) {
-		/* If we encounter either the first MODE message or a WELCOME (001)
-		 * message we know we are auth'ed and can exit the init loop.
-		 * Before that we JOIN the Channels
-		 */
-		char* channel = getenv ("CIRC_CHANNEL");
-		log_info ("channel: %s \n", channel);
-
-		GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (join_params, channel);
-		IrciumMessage* join_cmd =
-		  ircium_message_new (NULL, NULL, "JOIN", join_params);
-		int ret = irc_write_message (conn->server, join_cmd);
-
-		if (ret == -1) {
-			err (1, "Error while Joining Channels");
-		}
-
-		ev_io_stop (EV_A_ w);
-		ev_io_init (&conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
-		ev_io_start (EV_A_ & conn->watcher);
-	}
 }
 
 /* Start an I/O event loop for reading server s. */
@@ -294,7 +177,7 @@ irc_do_event_loop (const irc_server* s)
 	 * After that is finished the init loop stops the watcher
 	 * and starts it again with the main callback.
 	 */
-	ev_io_init (&conn->watcher, irc_init_loop_callback, conn->socket, EV_READ);
+	ev_io_init (&conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
 	ev_io_start (loop, &conn->watcher);
 
 	ev_timer_init (&timeout_watcher, irc_timeout_callback, 6, 0);
@@ -311,30 +194,32 @@ static void
 irc_loop_read_callback (EV_P_ ev_io* w, int re)
 {
 	irc_connection* conn = get_irc_connection_from_watcher (w);
-	char* buf = malloc(IRC_MESSAGE_SIZE);
+	char* buf = malloc (IRC_MESSAGE_SIZE);
 	memset (buf, 0, IRC_MESSAGE_SIZE);
 	irc_read_message (conn->server, buf);
 	log_debug ("main loop: %s\n", buf);
 
-	pthread_mutex_lock(&conn->queue_mtx);
+	pthread_mutex_lock (&conn->queue_mtx);
 	message_queue* mq = conn->queue;
 	if (mq == NULL) {
-		conn->queue = malloc(sizeof(message_queue));
+		conn->queue = malloc (sizeof (message_queue));
+		conn->queue->message = buf;
 		conn->queue->next = NULL;
 	} else {
 		while (mq->next != NULL)
 			mq = mq->next;
 
-		mq->next = malloc(sizeof(conn->queue));
+		mq->next = malloc (sizeof (conn->queue));
+		mq->next->message = buf;
 		mq->next->next = NULL;
 	}
-	pthread_mutex_unlock(&conn->queue_mtx);
+	pthread_mutex_unlock (&conn->queue_mtx);
 
 	ev_break (EV_A_ EVBREAK_ALL);
 }
 
 static void
-irc_timeout_callback(EV_P_ ev_timer* w, int re)
+irc_timeout_callback (EV_P_ ev_timer* w, int re)
 {
 	ev_break (EV_A_ EVBREAK_ONE);
 }
@@ -344,52 +229,30 @@ irc_process_message_queue (irc_connection* conn)
 {
 	message_queue* next;
 	while (conn->queue != NULL) {
-		handle_message(conn, conn->queue->message);
+		handle_message (conn, conn->queue->message);
 		next = conn->queue->next;
-		pthread_mutex_lock(&conn->queue_mtx);
+		pthread_mutex_lock (&conn->queue_mtx);
 		// free(conn->queue->message);
-		free(conn->queue);
+		free (conn->queue);
 		conn->queue = next;
-		pthread_mutex_unlock(&conn->queue_mtx);
+		pthread_mutex_unlock (&conn->queue_mtx);
 	}
 }
 
 static void
-handle_message (irc_connection* conn, const char *message)
+handle_message (irc_connection* conn, const char* message)
 {
-	GByteArray* gbuf;
-	gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, (guint8* )message, strlen (message));
-	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
+	GByteArray* gbuf = NULL;
+	size_t msg_len = strlen (message);
+	if (msg_len == 0)
+		return;
 
-	g_byte_array_free (gbuf, TRUE);
-
-	const char* msg_command = ircium_message_get_command (parsed_message);
-	const char* msg_source = ircium_message_get_source (parsed_message);
-	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
-	const GPtrArray* msg_tags;
-
-	/* Responds to PING request with the correct PONG so we don't get timeouted
-	 */
-	if (strstr (msg_command, "PING") != NULL) {
-		GPtrArray* msg_params_nonconst = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
-
-		IrciumMessage* pong_cmd =
-		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		int ret = irc_write_message (conn->server, pong_cmd);
-
-		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
-
-		if (ret == -1) {
-			err (1, "Error Responding to PING with PONG");
-		}
-	}
-
-	// to_modules should return a list of responses for each matching module
-	//	messages = to_modules(message);
-	//	for (i = 0; messages[i] != NULL; i++)
-	//		irc_write_bytes(ev_serv, messages[i]);
+	while (gbuf == NULL)
+		gbuf = g_byte_array_new ();
+	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
+	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
+	exec_hooks (conn->server, parsed_message);
+	exec_hooks (conn->server, (void*)1);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
@@ -403,9 +266,14 @@ irc_read_message (const irc_server* s, char buf[IRC_MESSAGE_SIZE])
 	if (c == NULL)
 		return -1;
 
-	for (i = 0; buf[i - 2] != '\r' && buf[i] != '\n'; i++) {
+	for (i = 0;
+	     buf[i - 2] != '\r' && buf[i - 1] != '\n' && i < IRC_MESSAGE_SIZE - 1;
+	     i++) {
 		n = irc_read_bytes (s, buf + i, 1);
 	}
+
+	buf[i] = '\0';
+	buf[IRC_MESSAGE_SIZE - 1] = '\0';
 
 	return i;
 }
@@ -432,7 +300,7 @@ irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 
 /* Serialize an IrciumMessage and send it to the server */
 int
-irc_write_message (const irc_server* s, IrciumMessage* message)
+irc_write_message (const irc_server* s, const IrciumMessage* message)
 {
 	GBytes* bytes = ircium_message_serialize (message);
 
@@ -475,12 +343,13 @@ int
 irc_create_socket (const irc_server* s)
 {
 	int ret, sock = -1;
-	struct addrinfo *ai, hints;
+	struct addrinfo *ai = NULL, *ai_head, hints;
 
-	memset (&hints, 0, sizeof hints);
+	memset (&hints, 0, sizeof (hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	ret = getaddrinfo (s->host, s->port, &hints, &ai);
+	ai_head = ai;
 	if (ret != 0) {
 		perror ("client: address");
 		exit (EXIT_FAILURE);
@@ -488,24 +357,24 @@ irc_create_socket (const irc_server* s)
 
 	/* Try the address info until we get a valid socket */
 	int conn = -1;
-	while (conn == -1 && (ai = ai->ai_next) != NULL) {
+	while (conn == -1 && ai != NULL) {
 		sock = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-        if (sock == -1) {
-            perror ("client: socket");
-            exit (EXIT_FAILURE);
-        }
-
+		if (sock == -1) {
+			perror ("client: socket");
+			continue;
+		}
 
 		/* [> We have a valid socket. Setup the connection <] */
 		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (conn == -1) {
+		if (conn == -1 || errno) {
 			close (sock);
 			conn = -1;
+			ai = ai->ai_next;
+			errno = 0;
 		}
 	}
 
-	freeaddrinfo (ai);
-
+	freeaddrinfo (ai_head);
 	return sock;
 }
 
@@ -523,13 +392,13 @@ setup_irc_connection (const irc_server* s, int sock)
 		encrypt_irc_connection (c);
 	}
 
-    int ret = setnonblock (c->socket);
-    if (ret == -1) {
-    	perror ("client: socket O_NONBLOCK");
-    	exit (EXIT_FAILURE);
-    }
-	
-    verify_socket (sock);
+	int ret = setnonblock (c->socket);
+	if (ret == -1) {
+		perror ("client: socket O_NONBLOCK");
+		exit (EXIT_FAILURE);
+	}
+
+	// verify_socket (sock);
 
 	return 0;
 }
@@ -574,7 +443,7 @@ create_irc_connection (const irc_server* s, int sock)
 	c->server = s;
 	c->socket = sock;
 	c->queue = NULL;
-	pthread_mutex_init(&c->queue_mtx, NULL);
+	pthread_mutex_init (&c->queue_mtx, NULL);
 	return c;
 }
 

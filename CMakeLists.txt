@@ -23,6 +23,8 @@ add_executable(circ
   "lib/log/log.c"
   "lib/log/log.h"
   "lib/irc/irc.c"
+  "lib/irc/hooks.c"
+  "lib/irc/core_hooks.c"
   "lib/b64/decode.c"
   "lib/b64/encode.c"
   "src/circ.c"
