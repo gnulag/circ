@@ -38,24 +38,24 @@ register_core_hooks (void);
 int
 irc_server_connect (void);
 void
-irc_do_event_loop (irc_server*);
+irc_do_event_loop (const irc_server*);
 void
-irc_do_init_event_loop (irc_server*);
+irc_do_init_event_loop (const irc_server*);
 int
-irc_read_message (irc_server*, char*);
+irc_read_message (const irc_server*, char*);
 int
-irc_read_bytes (irc_server*, char*, size_t);
+irc_read_bytes (const irc_server*, char*, size_t);
 int
-irc_write_message (irc_server* s, IrciumMessage* message);
+irc_write_message (const irc_server* s, IrciumMessage* message);
 int
-irc_write_bytes (irc_server* s, guint8* buf, size_t nbytes);
+irc_write_bytes (const irc_server* s, guint8* buf, size_t nbytes);
 
 void
-quit_irc_connection (irc_server* s);
+quit_irc_connection (const irc_server* s);
 void
-free_irc_server_connection (irc_server* s);
+free_irc_server_connection (const irc_server* s);
 
 void
-irc_init_channels (irc_server*);
+irc_init_channels (const irc_server*);
 
 #endif /* IRC_H */

@@ -35,7 +35,7 @@ typedef struct message_queue
 
 typedef struct
 {
-	irc_server* server;
+	const irc_server* server;
 	gnutls_session_t tls_session;
 	gnutls_certificate_credentials_t tls_creds;
 	int socket;
@@ -60,21 +60,21 @@ irc_process_message_queue (irc_connection* conn);
 static void
 handle_message (irc_connection* conn, const char* message);
 int
-irc_create_socket (irc_server*);
+irc_create_socket (const irc_server*);
 int
-setup_irc_connection (irc_server*, int);
+setup_irc_connection (const irc_server*, int);
 void
 encrypt_irc_connection (irc_connection*);
 irc_connection*
-create_irc_connection (irc_server*, int);
+create_irc_connection (const irc_server*, int);
 int
 make_irc_connection_entry (irc_connection*);
 irc_connection*
-get_irc_server_connection (irc_server*);
+get_irc_server_connection (const irc_server*);
 irc_connection*
 get_irc_connection_from_watcher (const ev_io* w);
 bool
-server_connected (irc_server* s);
+server_connected (const irc_server* s);
 bool
 connections_cap_reached (void);
 
@@ -171,7 +171,7 @@ irc_server_connect (void)
 
 /* Start an I/O event loop for reading server s. */
 void
-irc_do_event_loop (irc_server* s)
+irc_do_event_loop (const irc_server* s)
 {
 	irc_connection* conn = get_irc_server_connection (s);
 
@@ -253,6 +253,7 @@ irc_process_message_queue (irc_connection* conn)
 static void
 handle_message (irc_connection* conn, const char* message)
 {
+	GByteArray* gbuf = NULL;
 	size_t msg_len = strlen (message);
 
 	if (msg_len == 0)
@@ -265,12 +266,19 @@ handle_message (irc_connection* conn, const char* message)
 	exec_hooks (conn->server, command, parsed_message);
 
 	g_byte_array_unref (gbuf);
+<<<<<<< HEAD
 	g_object_unref (parsed_message);
+=======
+
+	const char* cmd = ircium_message_get_command (parsed_message);
+	exec_hooks (conn->server, cmd, parsed_message);
+	exec_hooks (conn->server, "*", parsed_message);
+>>>>>>> Add a command argument to the exec_hooks function for the "*" hook
 }
 
 /* irc_read_message reads an IRC message to a buffer */
 int
-irc_read_message (irc_server* s, char buf[IRC_MESSAGE_SIZE])
+irc_read_message (const irc_server* s, char buf[IRC_MESSAGE_SIZE])
 {
 	int n = 1;
 	int i = 0;
@@ -293,7 +301,7 @@ irc_read_message (irc_server* s, char buf[IRC_MESSAGE_SIZE])
 
 /* Read nbytes from the irc_server s's connection */
 int
-irc_read_bytes (irc_server* s, char* buf, size_t nbytes)
+irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 {
 	if (buf == NULL)
 		return -1;
@@ -313,7 +321,7 @@ irc_read_bytes (irc_server* s, char* buf, size_t nbytes)
 
 /* Serialize an IrciumMessage and send it to the server */
 int
-irc_write_message (irc_server* s, IrciumMessage* message)
+irc_write_message (const irc_server* s, IrciumMessage* message)
 {
 	GBytes* bytes = ircium_message_serialize (message);
 
@@ -323,7 +331,7 @@ irc_write_message (irc_server* s, IrciumMessage* message)
 	log_debug ("sending command: %s\n", data);
 
 	size_t size = len;
-	int ret = irc_write_bytes (s, data, size);
+	int ret = irc_write_bytes (s, (char*)data, size);
 
 	g_object_unref (message);
 
@@ -332,7 +340,7 @@ irc_write_message (irc_server* s, IrciumMessage* message)
 
 /* Write nbytes to the irc_server s's connection */
 int
-irc_write_bytes (irc_server* s, guint8* buf, size_t nbytes)
+irc_write_bytes (const irc_server* s, guint8* buf, size_t nbytes)
 {
 	if (buf == NULL)
 		return -1;
@@ -355,7 +363,7 @@ irc_write_bytes (irc_server* s, guint8* buf, size_t nbytes)
 
 /* Creates a socket to connect to the irc_server s and returns it */
 int
-irc_create_socket (irc_server* s)
+irc_create_socket (const irc_server* s)
 {
 	int ret, sock = -1;
 	struct addrinfo *ai = NULL, *ai_head, hints;
@@ -396,7 +404,7 @@ irc_create_socket (irc_server* s)
 
 /* setup an IRC connection to server s, return whether it succeeded */
 int
-setup_irc_connection (irc_server* s, int sock)
+setup_irc_connection (const irc_server* s, int sock)
 {
 	irc_connection* c = create_irc_connection (s, sock);
 	if (c == NULL)
@@ -450,7 +458,7 @@ encrypt_irc_connection (irc_connection* c)
 
 /* Create an irc_connection for irc_server s */
 irc_connection*
-create_irc_connection (irc_server* s, int sock)
+create_irc_connection (const irc_server* s, int sock)
 {
 	irc_connection* c = malloc (sizeof (irc_connection));
 	if (c == NULL)
@@ -484,7 +492,7 @@ make_irc_connection_entry (irc_connection* c)
  * return NULL if there's none
  */
 irc_connection*
-get_irc_server_connection (irc_server* s)
+get_irc_server_connection (const irc_server* s)
 {
 	int i;
 	for (i = 0; conns[i] != NULL; i++) {
@@ -509,7 +517,7 @@ get_irc_connection_from_watcher (const ev_io* w)
 }
 
 void
-quit_irc_connection (irc_server* s)
+quit_irc_connection (const irc_server* s)
 {
 	irc_connection* conn = get_irc_server_connection (s);
 
@@ -534,7 +542,7 @@ quit_irc_connection (irc_server* s)
 
 /* Returns whether the server is connected */
 bool
-server_connected (irc_server* s)
+server_connected (const irc_server* s)
 {
 	return get_irc_server_connection (s) != NULL;
 }
@@ -544,4 +552,21 @@ bool
 connections_cap_reached ()
 {
 	return conns[MAX_CONNECTIONS - 1] != NULL;
+}
+
+const irc_server*
+irc_get_server_from_name (const char* name)
+{
+	int i;
+	for (i = 0; conns[i] != NULL; i++)
+		if (strcmp (name, conns[i]->server->name) == 0)
+			return conns[i]->server;
+
+	return NULL;
+}
+
+const char*
+irc_get_server_name (const irc_server* s)
+{
+	return s->name;
 }

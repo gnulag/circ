@@ -6,16 +6,18 @@
 #include <stdio.h>   // puts
 #include <stdlib.h>  // malloc
 
+#include <glib.h>
+
 #include "config/config.h"
 
-#include "irc/hooks.h"
-#include "log/log.h"
-
 #include "b64/b64.h"
-#include "ircium-parser/ircium-message.h"
 #include "utlist/list.h"
 
-#include <glib.h>
+#include "log/log.h"
+#include "ircium-parser/ircium-message.h"
+#include "irc/hooks.h"
+
+#include "scheme/scheme.h"
 
 void
 exitHandler (int sig)
@@ -60,6 +62,7 @@ main (int argc, char** argv)
 	}
 
 	init_hooks ();
+	scheme_init ();
 	register_core_hooks ();
 
 	log_info ("setting up connection\n");
@@ -69,8 +72,7 @@ main (int argc, char** argv)
 	}
 	log_info ("connection setup\n");
 
-	// Calling exec_hooks with a NULL message executes the PREINIT hooks
-	exec_hooks (config->server, NULL);
+	exec_hooks (config->server, "PREINIT", NULL);
 
 	/* Init Event Loop handels auth via sasl and breaks on
 	 * receiving either a MODE or WELCOME message.

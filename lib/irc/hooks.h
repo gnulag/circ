@@ -11,8 +11,9 @@ typedef struct irc_hook
 void
 init_hooks (void);
 void
-add_hook (const char* command, void (*f) (const irc_server*, const IrciumMessage*));
+add_hook (const char* command,
+          void (*f) (const irc_server*, const IrciumMessage*));
 const irc_hook*
 get_hooks (const char* command);
 void
-exec_hooks (const irc_server* s, const IrciumMessage* msg);
+exec_hooks (const irc_server* s, const char* command, const IrciumMessage* msg);

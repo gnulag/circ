@@ -48,7 +48,8 @@ sasl_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	GPtrArray* cap_params = g_ptr_array_new_full (2, g_free);
 	g_ptr_array_add (cap_params, g_strdup ("REQ"));
 	g_ptr_array_add (cap_params, g_strdup ("sasl"));
-	const IrciumMessage* cap_cmd = ircium_message_new (NULL, NULL, "CAP", cap_params);
+	const IrciumMessage* cap_cmd =
+	  ircium_message_new (NULL, NULL, "CAP", cap_params);
 	irc_write_message (s, cap_cmd);
 	g_free (g_ptr_array_free (cap_params, TRUE));
 
