@@ -96,6 +96,8 @@ exec_hooks (const irc_server *s, IrciumMessage *msg)
 	const char *command;
 	if (msg == NULL)
 		command = "PREINIT";
+	else if (msg == (void *)1)
+		command = "*";
 	else
 		command = ircium_message_get_command(msg);
 
