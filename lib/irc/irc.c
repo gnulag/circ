@@ -342,7 +342,7 @@ irc_create_socket (const irc_server* s)
 	hints.ai_socktype = SOCK_STREAM;
 	ret = getaddrinfo (s->host, s->port, &hints, &ai);
 	ai_head = ai;
-	if (ret) {
+	if (ret != 0) {
 		perror ("client: address");
 		exit (EXIT_FAILURE);
 	}
@@ -351,14 +351,14 @@ irc_create_socket (const irc_server* s)
 	int conn = -1;
 	while (conn == -1 && ai != NULL) {
 		sock = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-		if (sock == -1) {
-			perror ("client: socket");
-			exit (EXIT_FAILURE);
-		}
+        	if (sock == -1) {
+            		perror ("client: socket");
+	    		continue;
+        	}
 
 		/* [> We have a valid socket. Setup the connection <] */
 		conn = connect (sock, ai->ai_addr, ai->ai_addrlen);
-		if (conn == -1 || errno) {
+		if (conn == -1) {
 			close (sock);
 			conn = -1;
 			ai = ai->ai_next;
@@ -366,12 +366,6 @@ irc_create_socket (const irc_server* s)
 		}
 	}
 
-	if (sock == -1) {
-		perror ("client: socket");
-		exit (EXIT_FAILURE);
-	}
-
-//	verify_socket (sock);
 	freeaddrinfo (ai_head);
 	return sock;
 }
@@ -390,11 +384,13 @@ setup_irc_connection (const irc_server* s, int sock)
 		encrypt_irc_connection (c);
 	}
 
-	int ret = setnonblock (c->socket);
-	if (ret == -1 || errno) {
-		perror ("client: socket O_NONBLOCK");
-		exit (EXIT_FAILURE);
-	}
+    int ret = setnonblock (c->socket);
+    if (ret == -1) {
+    	perror ("client: socket O_NONBLOCK");
+    	exit (EXIT_FAILURE);
+    }
+	
+    verify_socket (sock);
 
 	return 0;
 }
