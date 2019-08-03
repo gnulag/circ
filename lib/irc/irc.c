@@ -251,8 +251,9 @@ handle_message (irc_connection* conn, const char* message)
 		gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
 	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
-	exec_hooks (conn->server, parsed_message);
-	exec_hooks (conn->server, (void*)1);
+	const char* command = ircium_message_get_command (parsed_message);
+	exec_hooks (conn->server, command, parsed_message);
+	exec_hooks (conn->server, "*", parsed_message);
 }
 
 /* irc_read_message reads an IRC message to a buffer */

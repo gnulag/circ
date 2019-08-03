@@ -85,17 +85,9 @@ get_hooks (const char* command)
 }
 
 void
-exec_hooks (const irc_server* s, const IrciumMessage* msg)
+exec_hooks (const irc_server* s, char* command, const IrciumMessage* msg)
 {
 	const irc_hook* hook;
-	const char* command;
-	if (msg == NULL)
-		command = "PREINIT";
-	else if (msg == (void*)1)
-		command = "*";
-	else
-		command = ircium_message_get_command (msg);
-
 	for (hook = get_hooks (command); hook != NULL; hook = hook->next)
 		hook->entry (s, msg);
 }
