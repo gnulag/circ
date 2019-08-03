@@ -47,8 +47,6 @@ setnonblock (int fd);
 int
 verify_socket (int sock);
 static void
-irc_init_loop_callback (EV_P_ ev_io* w, int re);
-static void
 irc_loop_read_callback (EV_P_ ev_io* w, int re);
 static void
 irc_timeout_callback(EV_P_ ev_timer* w, int re);
@@ -165,123 +163,6 @@ irc_server_connect (const irc_server* s)
 	return 0;
 }
 
-static void
-irc_init_loop_callback (EV_P_ ev_io* w, int re)
-{
-	irc_connection* conn = get_irc_connection_from_watcher (w);
-	
-    char buf[IRC_MESSAGE_SIZE];
-	memset (buf, 0, sizeof (buf));
-
-	irc_read_message (conn->server, buf);
-
-	log_debug ("init loop: %s\n", buf);
-
-	GByteArray* gbuf;
-	gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, (guint8* )buf, sizeof (buf));
-	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
-
-	g_byte_array_free (gbuf, TRUE);
-
-	const char* msg_command = ircium_message_get_command (parsed_message);
-	const char* msg_source = ircium_message_get_source (parsed_message);
-	const GPtrArray* msg_params = ircium_message_get_params (parsed_message);
-	const GPtrArray* msg_tags;
-
-	/* Responds to PING request with the correct PONG so we don't get timeouted
-	 */
-	if (strstr (msg_command, "PING") != NULL) {
-		GPtrArray* msg_params_nonconst = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (msg_params_nonconst, msg_params->pdata[0]);
-
-		IrciumMessage* pong_cmd =
-		  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-		int ret = irc_write_message (conn->server, pong_cmd);
-
-		g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
-
-		if (ret == -1) {
-			err (1, "Error Responding to PING with PONG");
-		}
-	}
-
-	char* sasl_enabled_str = getenv ("CIRC_SASL_ENABLED");
-	bool sasl_enabled =
-	  sasl_enabled_str && strncmp (sasl_enabled_str, "true", 4);
-	if (sasl_enabled == 0 && strcmp (msg_command, "AUTHENTICATE") == 0 &&
-	    strcmp (msg_params->pdata[0], "+") == 0) {
-		/* When we receive "AUTHENTICATE +" we can send our user data
-		 */
-		char* auth_user = getenv ("CIRC_AUTH_USER");
-		char* auth_pass = getenv ("CIRC_AUTH_PASS");
-
-		log_info ("Doing SASL Auth\n");
-
-		gchar* auth_string;
-		char nullchar = '\0';
-		auth_string = g_strdup_printf (
-		  "%s%c%s%c%s", auth_user, nullchar, auth_user, nullchar, auth_pass);
-
-		char* auth_string_encoded = b64_encode (
-		  auth_string, strlen (auth_user) * 2 + strlen (auth_pass) + 2);
-
-		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (pass_params, auth_string_encoded);
-		IrciumMessage* pass_cmd =
-		  ircium_message_new (NULL, NULL, "AUTHENTICATE", pass_params);
-
-		int ret = irc_write_message (conn->server, pass_cmd);
-
-		g_free (g_ptr_array_free (pass_params, TRUE));
-		g_free (auth_string);
-
-		if (ret == -1) {
-			err (1, "Error during SASL Auth");
-		}
-
-	} else if (sasl_enabled == 0 && (strcmp (msg_command, "900") == 0 ||
-	                                 strcmp (msg_command, "903") == 0)) {
-		/* Once we receive the 903 command we know the auth was successful.
-		 * to proceed we need to end the CAP phase
-		 */
-		GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (pass_params, "END");
-		IrciumMessage* pass_cmd =
-		  ircium_message_new (NULL, NULL, "CAP", pass_params);
-
-		int ret = irc_write_message (conn->server, pass_cmd);
-
-		if (ret == -1) {
-			err (1, "Error during SASL Auth");
-		}
-	} else if (sasl_enabled == 0 && strcmp (msg_command, "904") == 0) {
-		err (1, "Error during SASL Auth");
-	} else if (strcmp (msg_command, "MODE") == 0 ||
-	           strcmp (msg_command, "001") == 0) {
-		/* If we encounter either the first MODE message or a WELCOME (001)
-		 * message we know we are auth'ed and can exit the init loop.
-		 * Before that we JOIN the Channels
-		 */
-		char* channel = getenv ("CIRC_CHANNEL");
-		log_info ("channel: %s \n", channel);
-
-		GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
-		g_ptr_array_add (join_params, channel);
-		IrciumMessage* join_cmd =
-		  ircium_message_new (NULL, NULL, "JOIN", join_params);
-		int ret = irc_write_message (conn->server, join_cmd);
-
-		if (ret == -1) {
-			err (1, "Error while Joining Channels");
-		}
-
-		ev_io_stop (EV_A_ w);
-		ev_io_init (&conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
-		ev_io_start (EV_A_ & conn->watcher);
-	}
-}
-
 /* Start an I/O event loop for reading server s. */
 void
 irc_do_event_loop (const irc_server* s)
@@ -296,7 +177,7 @@ irc_do_event_loop (const irc_server* s)
 	 * After that is finished the init loop stops the watcher
 	 * and starts it again with the main callback.
 	 */
-	ev_io_init (&conn->watcher, irc_init_loop_callback, conn->socket, EV_READ);
+	ev_io_init (&conn->watcher, irc_loop_read_callback, conn->socket, EV_READ);
 	ev_io_start (loop, &conn->watcher);
 
 	ev_timer_init (&timeout_watcher, irc_timeout_callback, 6, 0);
