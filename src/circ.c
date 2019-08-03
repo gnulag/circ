@@ -42,7 +42,7 @@ main (int argc, char** argv)
 	log_info ("connection setup\n");
 
 	// Calling exec_hooks with a NULL message executes the PREINIT hooks
-	exec_hooks (&s, NULL);
+	exec_hooks (&s, "PREINIT", NULL);
 
 	/* Init Event Loop handels auth via sasl and breaks on
 	 * receiving either a MODE or WELCOME message.
