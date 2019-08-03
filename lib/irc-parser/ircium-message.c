@@ -40,8 +40,8 @@ ircium_message_new_real (void)
 
 IrciumMessage*
 ircium_message_new (GPtrArray* tags,
-                    gchar* source,
-                    gchar* cmd,
+                    const gchar* source,
+                    const gchar* cmd,
                     GPtrArray* params)
 {
 	IrciumMessage* ret = ircium_message_new_real ();
@@ -114,7 +114,7 @@ tag_val (const guint8* head, const guint8* iter)
 }
 
 IrciumMessage*
-ircium_message_parse (GByteArray* bytes, gboolean has_tag_cap)
+ircium_message_parse (const GByteArray* bytes, const gboolean has_tag_cap)
 {
 	IrciumMessage* msg = NULL;
 
@@ -278,33 +278,34 @@ ret:
 }
 
 const GPtrArray*
-ircium_message_get_tags (IrciumMessage* msg)
+ircium_message_get_tags (const IrciumMessage* msg)
 {
 	return msg->tags;
 }
 
 const gchar*
-ircium_message_get_source (IrciumMessage* msg)
+ircium_message_get_source (const IrciumMessage* msg)
 {
 	return msg->source;
 }
 
 const gchar*
-ircium_message_get_command (IrciumMessage* msg)
+ircium_message_get_command (const IrciumMessage* msg)
 {
 	return msg->command;
 }
 
 const GPtrArray*
-ircium_message_get_params (IrciumMessage* msg)
+ircium_message_get_params (const IrciumMessage* msg)
 {
 	return msg->params;
 }
 
 GBytes*
-ircium_message_serialize (IrciumMessage* msg)
+ircium_message_serialize (const IrciumMessage* msg)
 {
-	g_return_val_if_fail (IRCIUM_IS_MESSAGE (msg), NULL);
+	if (msg == NULL)
+		return NULL;
 
 	// First, we serialize the tags if we have any.
 	gchar* serialized_tags = NULL;

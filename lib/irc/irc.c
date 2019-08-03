@@ -250,7 +250,7 @@ handle_message (irc_connection* conn, const char* message)
 	while (gbuf == NULL)
 		gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8*)message, strlen (message));
-	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
+	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 	exec_hooks (conn->server, parsed_message);
 	exec_hooks (conn->server, (void*)1);
 }
@@ -300,7 +300,7 @@ irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 
 /* Serialize an IrciumMessage and send it to the server */
 int
-irc_write_message (const irc_server* s, IrciumMessage* message)
+irc_write_message (const irc_server* s, const IrciumMessage* message)
 {
 	GBytes* bytes = ircium_message_serialize (message);
 
