@@ -27,28 +27,32 @@
 
 G_BEGIN_DECLS
 
-#define IRCIUM_TYPE_MESSAGE (ircium_message_get_type())
+#define IRCIUM_TYPE_MESSAGE (ircium_message_get_type ())
 
-G_DECLARE_FINAL_TYPE (IrciumMessage,
-		      ircium_message,
-		      IRCIUM, MESSAGE,
-		      GObject)
+G_DECLARE_FINAL_TYPE (IrciumMessage, ircium_message, IRCIUM, MESSAGE, GObject)
 
-IrciumMessage *ircium_message_parse (GByteArray *bytes,
-                                     gboolean    has_tag_cap);
+IrciumMessage*
+ircium_message_parse (GByteArray* bytes, gboolean has_tag_cap);
 
-IrciumMessage *ircium_message_new (GPtrArray *tags,
-                                   gchar     *source,
-                                   gchar     *cmd,
-                                   GPtrArray *params);
+IrciumMessage*
+ircium_message_new (GPtrArray* tags,
+                    gchar* source,
+                    gchar* cmd,
+                    GPtrArray* params);
 
-const GPtrArray *ircium_message_get_tags (IrciumMessage *msg);
-const gchar *ircium_message_get_source (IrciumMessage *msg);
-const gchar *ircium_message_get_command (IrciumMessage *msg);
-const GPtrArray *ircium_message_get_params (IrciumMessage *msg);
+const GPtrArray*
+ircium_message_get_tags (IrciumMessage* msg);
+const gchar*
+ircium_message_get_source (IrciumMessage* msg);
+const gchar*
+ircium_message_get_command (IrciumMessage* msg);
+const GPtrArray*
+ircium_message_get_params (IrciumMessage* msg);
 
-GBytes *ircium_message_serialize (IrciumMessage *msg);
+GBytes*
+ircium_message_serialize (IrciumMessage* msg);
 
-gchar *get_string_between (const guint8 *start, const guint8 *end);
+gchar*
+get_string_between (const guint8* start, const guint8* end);
 
 G_END_DECLS

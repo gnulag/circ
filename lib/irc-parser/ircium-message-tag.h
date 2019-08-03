@@ -25,25 +25,35 @@
 
 G_BEGIN_DECLS
 
-#define IRCIUM_TYPE_MESSAGE_TAG (ircium_message_tag_get_type())
+#define IRCIUM_TYPE_MESSAGE_TAG (ircium_message_tag_get_type ())
 
 G_DECLARE_FINAL_TYPE (IrciumMessageTag,
-		      ircium_message_tag,
-		      IRCIUM, MESSAGE_TAG,
-		      GObject)
+                      ircium_message_tag,
+                      IRCIUM,
+                      MESSAGE_TAG,
+                      GObject)
 
-IrciumMessageTag *ircium_message_tag_new (void);
-IrciumMessageTag *ircium_message_tag_new_with_name (gchar *name);
-IrciumMessageTag *ircium_message_tag_new_with_name_and_value (gchar *name,
-                                                              gchar *value);
+IrciumMessageTag*
+ircium_message_tag_new (void);
+IrciumMessageTag*
+ircium_message_tag_new_with_name (gchar* name);
+IrciumMessageTag*
+ircium_message_tag_new_with_name_and_value (gchar* name, gchar* value);
 
-const gchar *ircium_message_tag_get_name (IrciumMessageTag *tag);
-void ircium_message_tag_set_name (IrciumMessageTag *tag, gchar *name);
-const gchar *ircium_message_tag_get_value (IrciumMessageTag *tag);
-void ircium_message_tag_set_value (IrciumMessageTag *tag, gchar *value);
-gboolean ircium_message_tag_has_value (IrciumMessageTag *tag);
+const gchar*
+ircium_message_tag_get_name (IrciumMessageTag* tag);
+void
+ircium_message_tag_set_name (IrciumMessageTag* tag, gchar* name);
+const gchar*
+ircium_message_tag_get_value (IrciumMessageTag* tag);
+void
+ircium_message_tag_set_value (IrciumMessageTag* tag, gchar* value);
+gboolean
+ircium_message_tag_has_value (IrciumMessageTag* tag);
 
-gchar *ircium_message_tag_escape_string (const gchar *str);
-gchar *ircium_message_tag_unescape_string (const gchar *str);
+gchar*
+ircium_message_tag_escape_string (const gchar* str);
+gchar*
+ircium_message_tag_unescape_string (const gchar* str);
 
 G_END_DECLS

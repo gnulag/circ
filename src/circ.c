@@ -16,7 +16,7 @@ int
 main (int argc, char** argv)
 {
 	bool is_secure;
-	char *is_secure_str = getenv ("CIRC_SSL");
+	char* is_secure_str = getenv ("CIRC_SSL");
 	if (is_secure_str != NULL && strncmp (is_secure_str, "true", 4) == 0) {
 		is_secure = true;
 	} else {
@@ -42,7 +42,7 @@ main (int argc, char** argv)
 	log_info ("connection setup\n");
 
 	// Calling exec_hooks with a NULL message executes the PREINIT hooks
-	exec_hooks(&s, NULL);
+	exec_hooks (&s, NULL);
 
 	/* Init Event Loop handels auth via sasl and breaks on
 	 * receiving either a MODE or WELCOME message.
