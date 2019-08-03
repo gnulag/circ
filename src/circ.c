@@ -25,7 +25,6 @@ main (int argc, char** argv)
     
     struct ConfigType* config = get_config();
 
-
     log_debug ("-----\nConnecting to server: %s\nHost: %s\nPort: %s\nSSL: %u\n-----\n",
             config->server->name,
             config->server->host,
