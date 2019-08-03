@@ -97,7 +97,7 @@ exec_hooks (const irc_server *s, IrciumMessage *msg)
 	if (msg == NULL)
 		command = "PREINIT";
 	else
-		ircium_message_get_command(msg);
+		command = ircium_message_get_command(msg);
 
 	for (hook = get_hooks (command); hook != NULL; hook = hook->next)
 		hook->entry(s, msg);
