@@ -242,14 +242,14 @@ irc_process_message_queue (irc_connection* conn)
 static void
 handle_message (irc_connection* conn, const char* message)
 {
-	GByteArray* gbuf;
+	GByteArray* gbuf = NULL;
 	size_t msg_len = strlen (message);
 	if (msg_len == 0)
 		return;
 
 	while (gbuf == NULL)
 		gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, (guint8*)message, strlen (message));
+	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
 	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 	exec_hooks (conn->server, parsed_message);
 	exec_hooks (conn->server, (void*)1);
