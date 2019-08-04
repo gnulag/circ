@@ -6,7 +6,7 @@
 #include <stdlib.h> // malloc
 #include <stdbool.h> // malloc
 
-#include "config/config.h"
+/* #include "config/config.h" */
 #include "irc/hooks.h"
 #include "log/log.h"
 
@@ -16,9 +16,23 @@
 
 #include <glib.h>
 
+void exitHandler (int sig)
+{
+    log_debug ("Exiting\n");
+    ConfigType *config = get_config();
+    quit_irc_connection (config->server);
+    free_config ();
+}
+
 int
 main (int argc, char** argv)
 {
+    signal (SIGHUP, exitHandler);
+    signal (SIGINT, exitHandler);
+    signal (SIGQUIT, exitHandler); 
+    signal (SIGILL, exitHandler);
+    signal (SIGTRAP, exitHandler);
+    signal (SIGABRT, exitHandler);
     
     const char *config_file_path = "./config.json";
     parse_config (config_file_path);
@@ -44,28 +58,21 @@ main (int argc, char** argv)
 	init_hooks ();
 	register_core_hooks ();
 
-	irc_server s = { config->server->name,
-		             config->server->host,
-		             config->server->port,
-		             NULL,
-		             config->server->secure };
-
 	log_info ("setting up connection\n");
-	int ret = irc_server_connect (&s);
+	int ret = irc_server_connect ();
 	if (ret == -1) {
 		err (1, "Error Connecting");
 	}
 	log_info ("connection setup\n");
 
 	// Calling exec_hooks with a NULL message executes the PREINIT hooks
-	exec_hooks (&s, "PREINIT", NULL);
+	exec_hooks (config->server, "PREINIT", NULL);
 
 	/* Init Event Loop handels auth via sasl and breaks on
 	 * receiving either a MODE or WELCOME message.
 	 */
-	irc_do_event_loop (&s);
+	irc_do_event_loop (config->server);
 
-    atexit(free_config);
 
 	return 0;
 }
