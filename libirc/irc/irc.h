@@ -7,29 +7,29 @@
 
 typedef struct irc_user
 {
-    char *nickname;
-    char *ident;
-    char *realname;
+	char* nickname;
+	char* ident;
+	char* realname;
 
-    bool sasl_enabled;
-    char *sasl_user;
-    char *sasl_pass;
+	bool sasl_enabled;
+	char* sasl_user;
+	char* sasl_pass;
 } irc_user;
 
 typedef struct irc_channel
 {
-    char channel[1024];
-    struct irc_channel *next;
+	char channel[1024];
+	struct irc_channel* next;
 } irc_channel;
 
 typedef struct irc_server
 {
-    char *name;
-    char *host;
-    char *port;
-    bool secure;
-    struct irc_user *user;
-    struct irc_channel *channels;
+	char* name;
+	char* host;
+	char* port;
+	bool secure;
+	struct irc_user* user;
+	struct irc_channel* channels;
 } irc_server;
 
 void

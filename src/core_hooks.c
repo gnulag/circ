@@ -2,17 +2,17 @@
 #include <glib.h>
 #include <stdio.h>
 
-#include "config/config.h"
-#include "irc/irc.h"
 #include "b64/b64.h"
-#include "log/log.h"
+#include "config/config.h"
 #include "hooks.h"
+#include "irc/irc.h"
+#include "log/log.h"
 #include "utlist/list.h"
 
 static void
 register_preinit_hook (irc_server* s, IrciumMessage* msg)
 {
-    struct config_t *config = get_config();
+	struct config_t* config = get_config ();
 
 	log_debug ("Registering client...\n");
 	/* Sends NICK */
@@ -62,7 +62,7 @@ sasl_auth_hook (irc_server* s, IrciumMessage* msg)
 {
 	/* When we receive "AUTHENTICATE +" we can send our user data
 	 */
-    struct config_t *config = get_config();
+	struct config_t* config = get_config ();
 	char* auth_user = config->server->user->sasl_user;
 	char* auth_pass = config->server->user->sasl_pass;
 
@@ -83,7 +83,7 @@ sasl_auth_hook (irc_server* s, IrciumMessage* msg)
 
 	int ret = irc_write_message (s, pass_cmd);
 
-    free (auth_string_encoded);
+	free (auth_string_encoded);
 	g_free (auth_string);
 	if (ret == -1) {
 		err (1, "Error during SASL Auth");
@@ -120,21 +120,22 @@ channel_join_hook (irc_server* s, IrciumMessage* msg)
 	 * message we know we are auth'ed and can exit the init loop.
 	 * Before that we JOIN the Channels
 	 */
-    struct config_t *config = get_config();
+	struct config_t* config = get_config ();
 
-    log_debug ("Joining Channels: \n");
+	log_debug ("Joining Channels: \n");
 
-    struct irc_channel *l;
-    LL_FOREACH (config->server->channels, l) {
-        GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
-        g_ptr_array_add (join_params, l->channel);
-        IrciumMessage* join_cmd =
-          ircium_message_new (NULL, NULL, "JOIN", join_params);
-        if (irc_write_message (s, join_cmd) == -1) {
-            perror ("client: user_cmd");
-            exit (EXIT_FAILURE);
-        }
-    }
+	struct irc_channel* l;
+	LL_FOREACH (config->server->channels, l)
+	{
+		GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
+		g_ptr_array_add (join_params, l->channel);
+		IrciumMessage* join_cmd =
+		  ircium_message_new (NULL, NULL, "JOIN", join_params);
+		if (irc_write_message (s, join_cmd) == -1) {
+			perror ("client: user_cmd");
+			exit (EXIT_FAILURE);
+		}
+	}
 }
 
 static void
@@ -167,16 +168,16 @@ invite_hook (irc_server* s, IrciumMessage* msg)
 void
 register_core_hooks ()
 {
-    struct config_t *config = get_config();
+	struct config_t* config = get_config ();
 
 	/* Handle SASL */
-    if (config->server->user->sasl_enabled) {
-        add_hook ("PREINIT", sasl_preinit_hook);
-        add_hook ("AUTHENTICATE", sasl_auth_hook);
-        add_hook ("900", sasl_cap_hook);
-        add_hook ("903", sasl_cap_hook);
-        add_hook ("904", sasl_error_hook);
-    }
+	if (config->server->user->sasl_enabled) {
+		add_hook ("PREINIT", sasl_preinit_hook);
+		add_hook ("AUTHENTICATE", sasl_auth_hook);
+		add_hook ("900", sasl_cap_hook);
+		add_hook ("903", sasl_cap_hook);
+		add_hook ("904", sasl_error_hook);
+	}
 
 	add_hook ("PREINIT", register_preinit_hook);
 	add_hook ("INVITE", invite_hook);

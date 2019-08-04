@@ -37,9 +37,9 @@ typedef struct
 {
 	irc_server* server;
 	gnutls_session_t tls_session;
-    gnutls_certificate_credentials_t tls_creds;
+	gnutls_certificate_credentials_t tls_creds;
 	int socket;
-    bool ev_is_running;
+	bool ev_is_running;
 	ev_io watcher;
 	ev_timer timer;
 	pthread_mutex_t queue_mtx;
@@ -138,7 +138,7 @@ verify_socket (int sock)
 int
 irc_server_connect (void)
 {
-    config_t *config = get_config();
+	config_t* config = get_config ();
 	/*
 	 * For now, don't attempt to connect if we're already connected
 	 * to this server or if we have too many connections
@@ -176,7 +176,7 @@ irc_do_event_loop (irc_server* s)
 	irc_connection* conn = get_irc_server_connection (s);
 
 	struct ev_loop* loop = EV_DEFAULT;
-    conn->ev_is_running = true;
+	conn->ev_is_running = true;
 
 	/* We First start the loop with the init callback to perform
 	 * our initial setup like SASL and JOINing our channels.
@@ -194,10 +194,10 @@ irc_do_event_loop (irc_server* s)
 		irc_process_message_queue (conn);
 	}
 
-    ev_timer_stop (loop, &conn->timer);
-    ev_io_stop (loop, &conn->ev_init_watcher);
-    ev_io_stop (loop, &conn->watcher);
-    ev_loop_destroy (loop);
+	ev_timer_stop (loop, &conn->timer);
+	ev_io_stop (loop, &conn->ev_init_watcher);
+	ev_io_stop (loop, &conn->watcher);
+	ev_loop_destroy (loop);
 }
 
 /* irc_loop_read_callback handles a single IRC message synchronously */
@@ -243,7 +243,7 @@ irc_process_message_queue (irc_connection* conn)
 		handle_message (conn, conn->queue->message);
 		next = conn->queue->next;
 		pthread_mutex_lock (&conn->queue_mtx);
-        free(conn->queue->message);
+		free (conn->queue->message);
 		free (conn->queue);
 		conn->queue = next;
 		pthread_mutex_unlock (&conn->queue_mtx);
@@ -265,8 +265,8 @@ handle_message (irc_connection* conn, const char* message)
 	const char* command = ircium_message_get_command (parsed_message);
 	exec_hooks (conn->server, command, parsed_message);
 
-    g_byte_array_unref (gbuf);
-    g_object_unref (parsed_message);
+	g_byte_array_unref (gbuf);
+	g_object_unref (parsed_message);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
@@ -326,7 +326,7 @@ irc_write_message (irc_server* s, IrciumMessage* message)
 	size_t size = len;
 	int ret = irc_write_bytes (s, data, size);
 
-    g_object_unref (message);
+	g_object_unref (message);
 
 	return ret;
 }
@@ -414,7 +414,7 @@ setup_irc_connection (irc_server* s, int sock)
 		exit (EXIT_FAILURE);
 	}
 
-    verify_socket (sock);
+	verify_socket (sock);
 
 	return 0;
 }
@@ -433,7 +433,8 @@ encrypt_irc_connection (irc_connection* c)
 	gnutls_set_default_priority (c->tls_session);
 
 	/* Set credentials information */
-	gnutls_credentials_set (c->tls_session, GNUTLS_CRD_CERTIFICATE, c->tls_creds);
+	gnutls_credentials_set (
+	  c->tls_session, GNUTLS_CRD_CERTIFICATE, c->tls_creds);
 	gnutls_server_name_set (c->tls_session,
 	                        GNUTLS_NAME_DNS,
 	                        c->server->host,
@@ -515,19 +516,19 @@ quit_irc_connection (irc_server* s)
 	g_ptr_array_add (pass_params, "go i must now");
 	IrciumMessage* pass_cmd =
 	  ircium_message_new (NULL, NULL, "QUIT", pass_params);
-	
-    int ret = irc_write_message (s, pass_cmd);
+
+	int ret = irc_write_message (s, pass_cmd);
 
 	if (ret == -1) {
 		err (1, "Error during SASL Auth");
 	}
-   
-    conn->ev_is_running = false;
-    gnutls_deinit(conn->tls_session);
-    gnutls_certificate_free_credentials(conn->tls_creds);
-    gnutls_global_deinit();
-    close (conn->socket);
-    free (conn);
+
+	conn->ev_is_running = false;
+	gnutls_deinit (conn->tls_session);
+	gnutls_certificate_free_credentials (conn->tls_creds);
+	gnutls_global_deinit ();
+	close (conn->socket);
+	free (conn);
 }
 
 /* Returns whether the server is connected */

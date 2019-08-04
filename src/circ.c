@@ -2,9 +2,9 @@
 #include <errno.h>  // errno
 #include <unistd.h> // read, write
 
-#include <stdio.h>  // puts
-#include <stdlib.h> // malloc
 #include <stdbool.h> // malloc
+#include <stdio.h>   // puts
+#include <stdlib.h>  // malloc
 
 #include "config/config.h"
 
@@ -17,44 +17,47 @@
 
 #include <glib.h>
 
-void exitHandler (int sig)
+void
+exitHandler (int sig)
 {
-    log_debug ("Exiting\n");
-    config_t *config = get_config();
-    quit_irc_connection (config->server);
-    free_config ();
+	log_debug ("Exiting\n");
+	config_t* config = get_config ();
+	quit_irc_connection (config->server);
+	free_config ();
 }
 
 int
 main (int argc, char** argv)
 {
-    signal (SIGHUP, exitHandler);
-    signal (SIGINT, exitHandler);
-    signal (SIGQUIT, exitHandler); 
-    signal (SIGILL, exitHandler);
-    signal (SIGTRAP, exitHandler);
-    signal (SIGABRT, exitHandler);
-    
-    const char *config_file_path = "./config.json";
-    parse_config (config_file_path);
-    
-    struct config_t* config = get_config();
+	signal (SIGHUP, exitHandler);
+	signal (SIGINT, exitHandler);
+	signal (SIGQUIT, exitHandler);
+	signal (SIGILL, exitHandler);
+	signal (SIGTRAP, exitHandler);
+	signal (SIGABRT, exitHandler);
 
-    log_debug ("-----\nConnecting to server: %s\nHost: %s\nPort: %s\nSSL: %u\n-----\n",
-            config->server->name,
-            config->server->host,
-            config->server->port,
-            config->server->secure);
+	const char* config_file_path = "./config.json";
+	parse_config (config_file_path);
 
-    log_debug ("-----\nNickname %s\nIdent: %s\nRealname: %s\n-----\n",
-            config->server->user->nickname,
-            config->server->user->ident,
-            config->server->user->realname);
-   
-    struct irc_channel *elt;
-    LL_FOREACH (config->server->channels, elt) {
-        log_debug ("%s\n", elt->channel);
-    }
+	struct config_t* config = get_config ();
+
+	log_debug (
+	  "-----\nConnecting to server: %s\nHost: %s\nPort: %s\nSSL: %u\n-----\n",
+	  config->server->name,
+	  config->server->host,
+	  config->server->port,
+	  config->server->secure);
+
+	log_debug ("-----\nNickname %s\nIdent: %s\nRealname: %s\n-----\n",
+	           config->server->user->nickname,
+	           config->server->user->ident,
+	           config->server->user->realname);
+
+	struct irc_channel* elt;
+	LL_FOREACH (config->server->channels, elt)
+	{
+		log_debug ("%s\n", elt->channel);
+	}
 
 	init_hooks ();
 	register_core_hooks ();
@@ -73,7 +76,6 @@ main (int argc, char** argv)
 	 * receiving either a MODE or WELCOME message.
 	 */
 	irc_do_event_loop (config->server);
-
 
 	return 0;
 }

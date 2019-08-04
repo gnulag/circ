@@ -10,8 +10,7 @@ g_free_irc_hook (gpointer hook);
 void
 free_irc_hook (irc_hook* hook);
 irc_hook*
-create_irc_hook (const char* command,
-                 void (*f) (irc_server*, IrciumMessage*));
+create_irc_hook (const char* command, void (*f) (irc_server*, IrciumMessage*));
 static irc_hook*
 get_hooks_private (const char* command);
 
@@ -35,17 +34,16 @@ void
 free_irc_hook (irc_hook* hook)
 {
 	while (hook != NULL) {
-		irc_hook *tmp = hook;
+		irc_hook* tmp = hook;
 		free (hook->command);
-        free (hook->entry);
+		free (hook->entry);
 		hook = hook->next;
 		free (tmp);
 	}
 }
 
 irc_hook*
-create_irc_hook (const char* command,
-                 void (*f) (irc_server*, IrciumMessage*))
+create_irc_hook (const char* command, void (*f) (irc_server*, IrciumMessage*))
 {
 	irc_hook* hook = malloc (sizeof (irc_hook));
 	hook->command = strdup (command);
@@ -56,8 +54,7 @@ create_irc_hook (const char* command,
 }
 
 void
-add_hook (const char* command,
-          void (*f) (irc_server*, IrciumMessage*))
+add_hook (const char* command, void (*f) (irc_server*, IrciumMessage*))
 {
 	irc_hook* hook = create_irc_hook (command, f);
 	irc_hook* head = get_hooks_private (command);
@@ -87,6 +84,6 @@ exec_hooks (irc_server* s, const char* command, IrciumMessage* msg)
 {
 	const irc_hook* hook;
 	for (hook = get_hooks (command); hook != NULL; hook = hook->next)
-        // FIXME this entry isn't free'd
+		// FIXME this entry isn't free'd
 		hook->entry (s, msg);
 }
