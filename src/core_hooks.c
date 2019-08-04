@@ -2,10 +2,12 @@
 #include <glib.h>
 #include <stdio.h>
 
+#include "config/config.h"
+#include "irc/irc.h"
 #include "b64/b64.h"
 #include "log/log.h"
 #include "hooks.h"
-#include "util/list.h"
+#include "utlist/list.h"
 
 static void
 register_preinit_hook (ServerType* s, IrciumMessage* msg)

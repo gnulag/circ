@@ -1,4 +1,7 @@
-#include "irc-parser/ircium-message.h"
+#ifndef IRC_HOOKS_H
+#define IRC_HOOKS_H
+
+#include "ircium-parser/ircium-message.h"
 #include "irc.h"
 
 typedef struct irc_hook
@@ -16,3 +19,5 @@ const irc_hook*
 get_hooks (const char* command);
 void
 exec_hooks (ServerType* s, const char* command, IrciumMessage* msg);
+
+#endif /* IRC_HOOKS_H */

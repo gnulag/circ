@@ -1,7 +1,8 @@
+#include "irc/irc.h"
 #include "cJSON/cJSON.h"
 #include "config.h"
 #include "log/log.h"
-#include "util/list.h"
+#include "utlist/list.h"
 #include <err.h> // err for panics
 #include <stdbool.h>
 #include <stdio.h>

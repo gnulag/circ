@@ -1,7 +1,36 @@
-#include "irc-parser/ircium-message.h"
+#ifndef IRC_H
+#define IRC_H
+
+#include "ircium-parser/ircium-message.h"
 #include <glib.h>
 #include <stdbool.h>
-#include "config/config.h"
+
+typedef struct UserType
+{
+    char *nickname;
+    char *ident;
+    char *realname;
+
+    bool sasl_enabled;
+    char *sasl_user;
+    char *sasl_pass;
+} UserType;
+
+typedef struct ChannelType
+{
+    char channel[1024];
+    struct ChannelType *next;
+} ChannelType;
+
+typedef struct ServerType
+{
+    char *name;
+    char *host;
+    char *port;
+    bool secure;
+    struct UserType *user;
+    struct ChannelType *channels;
+} ServerType;
 
 void
 register_core_hooks (void);
@@ -28,3 +57,5 @@ free_irc_server_connection (ServerType* s);
 
 void
 irc_init_channels (ServerType*);
+
+#endif /* IRC_H */

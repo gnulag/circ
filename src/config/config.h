@@ -1,7 +1,10 @@
-// nice macro from https://stackoverflow.com/a/10966395/3474615
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include <stdbool.h>
 #include <glib.h>
+
+#define DEBUG (get_config() && get_config()->debug)
 
 typedef struct module
 {
@@ -11,33 +14,6 @@ typedef struct module
     char *cwd;
     char *config;
 } module;
-
-typedef struct UserType
-{
-    char *nickname;
-    char *ident;
-    char *realname;
-
-    bool sasl_enabled;
-    char *sasl_user;
-    char *sasl_pass;
-} UserType;
-
-typedef struct ChannelType
-{
-    char channel[1024];
-    struct ChannelType *next;
-} ChannelType;
-
-typedef struct ServerType
-{
-    char *name;
-    char *host;
-    char *port;
-    bool secure;
-    struct UserType *user;
-    struct ChannelType *channels;
-} ServerType;
 
 typedef struct ModuleType
 {
@@ -59,3 +35,5 @@ typedef struct ConfigType
 struct ConfigType* get_config();
 int parse_config (const char *config_file_path);
 void free_config ();
+
+#endif /* CONFIG_H */

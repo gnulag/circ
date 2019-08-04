@@ -1,25 +1,20 @@
-#Contributing
+# Contributing
 
-**Fork, then clone the repo:**
+## Setup
+
+### Fork, then clone the repo:
 
 ```bash
 git clone git@github.com:<your-username>/circ.git
 ```
 
-**Install the dependencies:**
+Install the dependencies, see [README.md](https://github.com/gnulag/circ).
 
-* `cmake`
-* `make`
-* a C compiler
-* `libunistring-dev`
-* `libev-dev`
-* `gnutls-dev`
-
-**Install the development dependencies (this is important!):**
+### Install the development dependencies:
 
 * `clang` (for `clang-format`, `clang-tidy`)
 
-**Install the Git Hooks**
+### Install the Git Hooks
 
 Symlink `.githooks` to `.git/hooks`.
 

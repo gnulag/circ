@@ -2,45 +2,42 @@ cmake_minimum_required(VERSION 2.8)
 
 project(circ C)
 
+set(CMAKE_BUILD_TYPE Debug CACHE STRING "debug build" FORCE)
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-set(CMAKE_BUILD_TYPE Debug)
 
 include(PrettyCompilerColors)
-find_package(GLIB COMPONENTS gobject REQUIRED)
 
-include_directories(
-    ./lib
-    ${GLIB_INCLUDE_DIRS}
+add_subdirectory(log)
+add_subdirectory(libirc)
+
+set(CIRC_SOURCES
+	src/config/config.c
+	src/core_hooks.c
+	src/circ.c
+
+	thirdparty/cJSON/cJSON.c
 )
 
-add_executable(circ
-  "lib/irc-parser/ircium-message.c"
-  "lib/irc-parser/ircium-message-tag.c"
-  "lib/config/config.c"
-  "lib/config/config.h"
-  "lib/cJSON/cJSON.c"
-  "lib/cJSON/cJSON.h"
-  "lib/util/list.h"
-  "lib/log/log.c"
-  "lib/log/log.h"
-  "lib/irc/irc.c"
-  "lib/irc/hooks.c"
-  "lib/irc/core_hooks.c"
-  "lib/b64/decode.c"
-  "lib/b64/encode.c"
-  "src/circ.c"
-)
+add_executable(circ ${CIRC_SOURCES})
 
-find_library(LIBEV_LIBS        NAMES ev          REQUIRED)
-find_library(LIBGNUTLS_LIBS    NAMES gnutls      REQUIRED)
-find_library(LIBUNISTRING_LIBS NAMES unistring   REQUIRED)
+find_library(LIBEV_LIBS     NAMES ev           REQUIRED)
+find_library(LIBGNUTLS_LIBS NAMES gnutls       REQUIRED)
+find_package(GLIB           COMPONENTS gobject REQUIRED)
+
+target_include_directories(circ
+	PRIVATE src
+	PRIVATE thirdparty
+	PRIVATE ${GLIB_INCLUDE_DIRS}
+)
 
 target_link_libraries(
 	circ
+	irc
+	log
 	${LIBEV_LIBS}
 	${LIBGNUTLS_LIBS}
-	${LIBUNISTRING_LIBS}
-    ${GLIB_GOBJECT_LIBRARIES}
-    ${GLIB_LIBRARIES}
-)
 
+	${GLIB_GOBJECT_LIBRARIES}
+	${GLIB_LIBRARIES}
+)
