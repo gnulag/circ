@@ -78,8 +78,9 @@ scheme_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
 	if (me == NULL)
 		return;
 
-	while ((me = me->next))
+	do {
 		scheme_run_module_entry (me, s, msg);
+	} while ((me = me->next));
 }
 
 void
@@ -118,8 +119,9 @@ scheme_exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 	if (me == NULL)
 		return;
 
-	while ((me = me->next))
+	do {
 		scheme_run_module_entry (me, s, msg);
+	} while ((me = me->next));
 }
 
 static void
@@ -127,6 +129,7 @@ scheme_run_module_entry (mod_entry* me,
                          const irc_server* s,
                          const IrciumMessage* msg)
 {
+	puts("in scheme_run_module_entry");
 	pthread_mutex_lock (&me->mod->mtx);
 	me->mod->mod_ctx.serv = s;
 	me->mod->mod_ctx.msg = msg;
@@ -159,8 +162,8 @@ scheme_load_modules (char* dir)
 {
 	char* paths[] = { dir, NULL };
 	FTS* f = fts_open (paths, FTS_LOGICAL | FTS_NOSTAT, NULL);
-	FTSENT* fe;
-
+	FTSENT *fe;
+	
 	while ((fe = fts_read (f)))
 		if (strlen (fe->fts_name) > 4 &&
 		    (strncmp (fe->fts_name + (fe->fts_namelen - 4), ".scm", 4) == 0 ||
@@ -218,8 +221,10 @@ scheme_get_module_from_id (int id)
 	if (mod == NULL)
 		return NULL;
 
-	while ((mod = mod->next))
+	do {
 		if (mod->id == id)
 			return mod;
+	} while ((mod = mod->next));
+
 	return NULL;
 }
