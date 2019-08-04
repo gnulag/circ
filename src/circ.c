@@ -6,13 +6,14 @@
 #include <stdlib.h> // malloc
 #include <stdbool.h> // malloc
 
-/* #include "config/config.h" */
+#include "config/config.h"
+
 #include "irc/hooks.h"
 #include "log/log.h"
 
 #include "b64/b64.h"
-#include "irc-parser/ircium-message.h"
-#include "util/list.h"
+#include "ircium-parser/ircium-message.h"
+#include "utlist/list.h"
 
 #include <glib.h>
 

@@ -18,8 +18,11 @@
 #include "hooks.h"
 
 #include "b64/b64.h"
-/* #include "config/config.h" */
-#include "irc-parser/ircium-message.h"
+
+/* TODO: this must be removed */
+#include "config/config.h"
+
+#include "ircium-parser/ircium-message.h"
 #include "log/log.h"
 
 #define IRC_MESSAGE_SIZE 8192 // IRCv3 message size + 1 for '\0'

@@ -1,10 +1,10 @@
-Circ
+circ
 ===
 
-Meet Circ, our channel locked Ultimate IRC Bot. After recently deprecating
-vini,  we decided to up the ante: to forge our own bot from scratch. No
-forking, no outside code, but this time we can't leave #gnulag. All leading up
-to eventually taking on one of IRC's biggest challenges, the agreeing on
+Meet **circ**, our channel locked Ultimate IRC Bot. After recently deprecating
+vini, we decided to up the ante: to forge our own bot from scratch. No forking,
+no outside code, but this time we can't leave #gnulag. All leading up to
+eventually taking on one of IRC's biggest challenges, the agreeing on
 something.
 
 ## Building
@@ -14,21 +14,15 @@ Requirements:
 * `cmake`
 * `make`
 * a C compiler
-* `libunistring-dev`
-* `libev-dev`
-* `gnutls-dev`
-
-```
-./build.sh
-```
+* libev
+* gnutls
+* glib
 
 ## Running
 
-Circ is configured by environment variables. See `lib/config` for more information.
+Put a copy of `config.json` into the binary directory and edit it.
 
-```
-./start.sh
-```
+Run `circ`.
 
 ## Contributing
 
