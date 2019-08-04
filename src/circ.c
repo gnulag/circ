@@ -20,7 +20,7 @@
 void exitHandler (int sig)
 {
     log_debug ("Exiting\n");
-    ConfigType *config = get_config();
+    config_t *config = get_config();
     quit_irc_connection (config->server);
     free_config ();
 }
@@ -38,7 +38,7 @@ main (int argc, char** argv)
     const char *config_file_path = "./config.json";
     parse_config (config_file_path);
     
-    struct ConfigType* config = get_config();
+    struct config_t* config = get_config();
 
     log_debug ("-----\nConnecting to server: %s\nHost: %s\nPort: %s\nSSL: %u\n-----\n",
             config->server->name,
@@ -51,7 +51,7 @@ main (int argc, char** argv)
             config->server->user->ident,
             config->server->user->realname);
    
-    struct ChannelType *elt;
+    struct irc_channel *elt;
     LL_FOREACH (config->server->channels, elt) {
         log_debug ("%s\n", elt->channel);
     }

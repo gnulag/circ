@@ -11,7 +11,7 @@ void
 free_irc_hook (irc_hook* hook);
 irc_hook*
 create_irc_hook (const char* command,
-                 void (*f) (ServerType*, IrciumMessage*));
+                 void (*f) (irc_server*, IrciumMessage*));
 static irc_hook*
 get_hooks_private (const char* command);
 
@@ -45,7 +45,7 @@ free_irc_hook (irc_hook* hook)
 
 irc_hook*
 create_irc_hook (const char* command,
-                 void (*f) (ServerType*, IrciumMessage*))
+                 void (*f) (irc_server*, IrciumMessage*))
 {
 	irc_hook* hook = malloc (sizeof (irc_hook));
 	hook->command = strdup (command);
@@ -57,7 +57,7 @@ create_irc_hook (const char* command,
 
 void
 add_hook (const char* command,
-          void (*f) (ServerType*, IrciumMessage*))
+          void (*f) (irc_server*, IrciumMessage*))
 {
 	irc_hook* hook = create_irc_hook (command, f);
 	irc_hook* head = get_hooks_private (command);
@@ -83,7 +83,7 @@ get_hooks (const char* command)
 }
 
 void
-exec_hooks (ServerType* s, const char* command, IrciumMessage* msg)
+exec_hooks (irc_server* s, const char* command, IrciumMessage* msg)
 {
 	const irc_hook* hook;
 	for (hook = get_hooks (command); hook != NULL; hook = hook->next)

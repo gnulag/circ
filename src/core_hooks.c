@@ -10,9 +10,9 @@
 #include "utlist/list.h"
 
 static void
-register_preinit_hook (ServerType* s, IrciumMessage* msg)
+register_preinit_hook (irc_server* s, IrciumMessage* msg)
 {
-    struct ConfigType *config = get_config();
+    struct config_t *config = get_config();
 
 	log_debug ("Registering client...\n");
 	/* Sends NICK */
@@ -40,7 +40,7 @@ register_preinit_hook (ServerType* s, IrciumMessage* msg)
 }
 
 static void
-sasl_preinit_hook (ServerType* s, IrciumMessage* msg)
+sasl_preinit_hook (irc_server* s, IrciumMessage* msg)
 {
 	log_info ("Doing SASL Auth\n");
 	GPtrArray* cap_params = g_ptr_array_new_full (2, g_free);
@@ -58,11 +58,11 @@ sasl_preinit_hook (ServerType* s, IrciumMessage* msg)
 }
 
 static void
-sasl_auth_hook (ServerType* s, IrciumMessage* msg)
+sasl_auth_hook (irc_server* s, IrciumMessage* msg)
 {
 	/* When we receive "AUTHENTICATE +" we can send our user data
 	 */
-    struct ConfigType *config = get_config();
+    struct config_t *config = get_config();
 	char* auth_user = config->server->user->sasl_user;
 	char* auth_pass = config->server->user->sasl_pass;
 
@@ -91,7 +91,7 @@ sasl_auth_hook (ServerType* s, IrciumMessage* msg)
 }
 
 static void
-sasl_cap_hook (ServerType* s, IrciumMessage* msg)
+sasl_cap_hook (irc_server* s, IrciumMessage* msg)
 {
 	/* Once we receive the 903 command we know the auth was successful.
 	 * to proceed we need to end the CAP phase
@@ -108,23 +108,23 @@ sasl_cap_hook (ServerType* s, IrciumMessage* msg)
 }
 
 static void
-sasl_error_hook (ServerType* s, IrciumMessage* msg)
+sasl_error_hook (irc_server* s, IrciumMessage* msg)
 {
 	err (1, "Error during SASL Auth");
 }
 
 static void
-channel_join_hook (ServerType* s, IrciumMessage* msg)
+channel_join_hook (irc_server* s, IrciumMessage* msg)
 {
 	/* If we encounter either the first MODE message or a WELCOME (001)
 	 * message we know we are auth'ed and can exit the init loop.
 	 * Before that we JOIN the Channels
 	 */
-    struct ConfigType *config = get_config();
+    struct config_t *config = get_config();
 
     log_debug ("Joining Channels: \n");
 
-    struct ChannelType *l;
+    struct irc_channel *l;
     LL_FOREACH (config->server->channels, l) {
         GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
         g_ptr_array_add (join_params, l->channel);
@@ -138,7 +138,7 @@ channel_join_hook (ServerType* s, IrciumMessage* msg)
 }
 
 static void
-ping_hook (ServerType* s, IrciumMessage* msg)
+ping_hook (irc_server* s, IrciumMessage* msg)
 {
 	const GPtrArray* msg_params = ircium_message_get_params (msg);
 
@@ -153,7 +153,7 @@ ping_hook (ServerType* s, IrciumMessage* msg)
 }
 
 static void
-invite_hook (ServerType* s, IrciumMessage* msg)
+invite_hook (irc_server* s, IrciumMessage* msg)
 {
 	const GPtrArray* ircium_params = ircium_message_get_params (msg);
 	GPtrArray* msg_params = g_ptr_array_new_full (ircium_params->len, g_free);
@@ -167,7 +167,7 @@ invite_hook (ServerType* s, IrciumMessage* msg)
 void
 register_core_hooks ()
 {
-    struct ConfigType *config = get_config();
+    struct config_t *config = get_config();
 
 	/* Handle SASL */
     if (config->server->user->sasl_enabled) {

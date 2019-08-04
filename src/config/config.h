@@ -6,33 +6,24 @@
 
 #define DEBUG (get_config() && get_config()->debug)
 
-typedef struct module
-{
-    char *name;
-    char *matchers;
-    char *cmd;
-    char *cwd;
-    char *config;
-} module;
-
-typedef struct ModuleType
+typedef struct module_t
 {
     char *name;
     char *cmd;
     char *cwd;
     char *config;
     char *matchers[];
-} ModuleType;
+} module_t;
 
-typedef struct ConfigType
+typedef struct config_t
 {
     bool debug;
-    struct ServerType *server;
-    struct ModuleType *modules[];
-} ConfigType;
+    struct irc_server *server;
+    struct module_t *modules[];
+} config_t;
 
 // configstruct* config;
-struct ConfigType* get_config();
+struct config_t* get_config();
 int parse_config (const char *config_file_path);
 void free_config ();
 
