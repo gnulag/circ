@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct ConfigType* config;
+struct config_t* config;
 
-struct ConfigType*
+struct config_t*
 get_config ()
 {
 	return config;
@@ -32,7 +32,7 @@ free_config ()
     free (config->server->user);
 
     /* now delete each element, use the safe iterator */
-    struct ChannelType *l, *tmp;
+    struct irc_channel *l, *tmp;
     LL_FOREACH_SAFE(config->server->channels,l,tmp) {
       LL_DELETE(config->server->channels,l);
       free(l);
@@ -80,7 +80,7 @@ parse_config (const char* config_file_path)
 	 * Parse the Config File
 	 */
 
-	config = malloc (sizeof (ConfigType));
+	config = malloc (sizeof (config_t));
 
 	cJSON* debug = cJSON_GetObjectItemCaseSensitive (json, "debug");
 	if (cJSON_IsTrue (debug))
@@ -91,7 +91,7 @@ parse_config (const char* config_file_path)
 	/* Parse Servers section */
 	cJSON* server = cJSON_GetObjectItemCaseSensitive (json, "server");
 	if (cJSON_IsObject (server)) {
-		config->server = malloc (sizeof (ServerType));
+		config->server = malloc (sizeof (irc_server));
 
 		cJSON* name = cJSON_GetObjectItemCaseSensitive (server, "name");
 		if (cJSON_IsString (name) && (name->valuestring != NULL)) {
@@ -125,8 +125,8 @@ parse_config (const char* config_file_path)
 		/* Add user data to server */
 		cJSON* user = cJSON_GetObjectItemCaseSensitive (server, "user");
 		if (cJSON_IsObject (user)) {
-			struct UserType* tmp_user;
-			tmp_user = malloc (sizeof (UserType));
+			struct irc_user* tmp_user;
+			tmp_user = malloc (sizeof (irc_user));
 
 			cJSON* nickname =
 			  cJSON_GetObjectItemCaseSensitive (user, "nickname");
@@ -192,8 +192,8 @@ parse_config (const char* config_file_path)
 		cJSON_ArrayForEach (channel, channels)
 		{
             if (cJSON_IsString (channel)) {
-                struct ChannelType *item;
-                item = (ChannelType *)malloc(sizeof *item);
+                struct irc_channel *item;
+                item = (irc_channel *)malloc(sizeof *item);
                 strcpy (item->channel, channel->valuestring);
                 LL_APPEND(config->server->channels, item);
 			} else
@@ -210,7 +210,7 @@ parse_config (const char* config_file_path)
 	cJSON_ArrayForEach (module, modules)
 	{
 		if (cJSON_IsObject (module)) {
-			struct ModuleType* tmp_module = malloc (sizeof (ModuleType));
+			struct module_t* tmp_module = malloc (sizeof (module_t));
 
 			cJSON* name = cJSON_GetObjectItemCaseSensitive (module, "name");
 			if (cJSON_IsString (name) && (name->valuestring != NULL)) {

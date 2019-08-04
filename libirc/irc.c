@@ -35,7 +35,7 @@ typedef struct message_queue
 
 typedef struct
 {
-	ServerType* server;
+	irc_server* server;
 	gnutls_session_t tls_session;
     gnutls_certificate_credentials_t tls_creds;
 	int socket;
@@ -60,21 +60,21 @@ irc_process_message_queue (irc_connection* conn);
 static void
 handle_message (irc_connection* conn, const char* message);
 int
-irc_create_socket (ServerType*);
+irc_create_socket (irc_server*);
 int
-setup_irc_connection (ServerType*, int);
+setup_irc_connection (irc_server*, int);
 void
 encrypt_irc_connection (irc_connection*);
 irc_connection*
-create_irc_connection (ServerType*, int);
+create_irc_connection (irc_server*, int);
 int
 make_irc_connection_entry (irc_connection*);
 irc_connection*
-get_irc_server_connection (ServerType*);
+get_irc_server_connection (irc_server*);
 irc_connection*
 get_irc_connection_from_watcher (const ev_io* w);
 bool
-server_connected (ServerType* s);
+server_connected (irc_server* s);
 bool
 connections_cap_reached (void);
 
@@ -138,7 +138,7 @@ verify_socket (int sock)
 int
 irc_server_connect (void)
 {
-    ConfigType *config = get_config();
+    config_t *config = get_config();
 	/*
 	 * For now, don't attempt to connect if we're already connected
 	 * to this server or if we have too many connections
@@ -171,7 +171,7 @@ irc_server_connect (void)
 
 /* Start an I/O event loop for reading server s. */
 void
-irc_do_event_loop (ServerType* s)
+irc_do_event_loop (irc_server* s)
 {
 	irc_connection* conn = get_irc_server_connection (s);
 
@@ -271,7 +271,7 @@ handle_message (irc_connection* conn, const char* message)
 
 /* irc_read_message reads an IRC message to a buffer */
 int
-irc_read_message (ServerType* s, char buf[IRC_MESSAGE_SIZE])
+irc_read_message (irc_server* s, char buf[IRC_MESSAGE_SIZE])
 {
 	int n = 1;
 	int i = 0;
@@ -294,7 +294,7 @@ irc_read_message (ServerType* s, char buf[IRC_MESSAGE_SIZE])
 
 /* Read nbytes from the irc_server s's connection */
 int
-irc_read_bytes (ServerType* s, char* buf, size_t nbytes)
+irc_read_bytes (irc_server* s, char* buf, size_t nbytes)
 {
 	if (buf == NULL)
 		return -1;
@@ -314,7 +314,7 @@ irc_read_bytes (ServerType* s, char* buf, size_t nbytes)
 
 /* Serialize an IrciumMessage and send it to the server */
 int
-irc_write_message (ServerType* s, IrciumMessage* message)
+irc_write_message (irc_server* s, IrciumMessage* message)
 {
 	GBytes* bytes = ircium_message_serialize (message);
 
@@ -333,7 +333,7 @@ irc_write_message (ServerType* s, IrciumMessage* message)
 
 /* Write nbytes to the irc_server s's connection */
 int
-irc_write_bytes (ServerType* s, guint8* buf, size_t nbytes)
+irc_write_bytes (irc_server* s, guint8* buf, size_t nbytes)
 {
 	if (buf == NULL)
 		return -1;
@@ -356,7 +356,7 @@ irc_write_bytes (ServerType* s, guint8* buf, size_t nbytes)
 
 /* Creates a socket to connect to the irc_server s and returns it */
 int
-irc_create_socket (ServerType* s)
+irc_create_socket (irc_server* s)
 {
 	int ret, sock = -1;
 	struct addrinfo *ai = NULL, *ai_head, hints;
@@ -396,7 +396,7 @@ irc_create_socket (ServerType* s)
 
 /* setup an IRC connection to server s, return whether it succeeded */
 int
-setup_irc_connection (ServerType* s, int sock)
+setup_irc_connection (irc_server* s, int sock)
 {
 	irc_connection* c = create_irc_connection (s, sock);
 	if (c == NULL)
@@ -449,7 +449,7 @@ encrypt_irc_connection (irc_connection* c)
 
 /* Create an irc_connection for irc_server s */
 irc_connection*
-create_irc_connection (ServerType* s, int sock)
+create_irc_connection (irc_server* s, int sock)
 {
 	irc_connection* c = malloc (sizeof (irc_connection));
 	if (c == NULL)
@@ -482,7 +482,7 @@ make_irc_connection_entry (irc_connection* c)
  * return NULL if there's none
  */
 irc_connection*
-get_irc_server_connection (ServerType* s)
+get_irc_server_connection (irc_server* s)
 {
 	int i;
 	for (i = 0; conns[i] != NULL; i++) {
@@ -507,7 +507,7 @@ get_irc_connection_from_watcher (const ev_io* w)
 }
 
 void
-quit_irc_connection (ServerType* s)
+quit_irc_connection (irc_server* s)
 {
 	irc_connection* conn = get_irc_server_connection (s);
 
@@ -532,7 +532,7 @@ quit_irc_connection (ServerType* s)
 
 /* Returns whether the server is connected */
 bool
-server_connected (ServerType* s)
+server_connected (irc_server* s)
 {
 	return get_irc_server_connection (s) != NULL;
 }
