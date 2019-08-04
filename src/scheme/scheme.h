@@ -19,10 +19,10 @@ typedef struct module
 void
 scheme_init (void);
 module*
-get_module_from_id(int id);
+scheme_get_module_from_id(int id);
 void
-add_irc_hook (const char *command, sexp func, module *mod);
+scheme_add_irc_hook (const char *command, sexp func, module *mod);
 void
-add_command_hook (const char *command, sexp func, module *mod);
+scheme_add_command_hook (const char *command, sexp func, module *mod);
 void
-define_foreign_functions (sexp ctx);
+scmapi_define_foreign_functions (sexp ctx);

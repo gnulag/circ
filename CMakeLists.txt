@@ -14,7 +14,7 @@ add_subdirectory(libirc)
 set(CIRC_SOURCES
 	src/config/config.c
 	src/core_hooks.c
-	src/scheme/api.c
+	src/scheme/scmapi.c
 	src/scheme/scheme.c
 	src/circ.c
 

@@ -16,7 +16,7 @@ typedef struct mod_entry
 	struct mod_entry* next;
 } mod_entry;
 
-static int mod_ids;
+static unsigned int mod_ids = 0;
 static module* module_list;
 
 /*
@@ -37,11 +37,9 @@ static GHashTable* irc_hooks;
 static char* cmd_prefix;
 
 static void
-exec_irc_hooks (const irc_server *s, const IrciumMessage *msg);
+scheme_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg);
 static void
-exec_command_hooks (const irc_server *s, const IrciumMessage *msg);
-sexp
-garr_to_scheme_list (sexp ctx, const GPtrArray* arr, int index);
+scheme_exec_command_hooks (const irc_server *s, const IrciumMessage *msg);
 static void
 scheme_run_module_entry (mod_entry* me,
                          const irc_server* s,
@@ -52,16 +50,18 @@ static void
 scheme_load_modules (char* dir);
 static module*
 scheme_create_module (char* path);
+static void
+scheme_register_module (module* mod);
 
 static void
 scheme_entry (const irc_server* s, const IrciumMessage* msg)
 {
-	exec_irc_hooks(s, msg);
-	exec_command_hooks(s, msg);
+	scheme_exec_irc_hooks(s, msg);
+	scheme_exec_command_hooks(s, msg);
 }
 
 void
-add_irc_hook (const char *command, sexp func, module *mod)
+scheme_add_irc_hook (const char *command, sexp func, module *mod)
 {
 	mod_entry *me = malloc(sizeof(mod_entry));
 	me->mod = mod;
@@ -71,7 +71,7 @@ add_irc_hook (const char *command, sexp func, module *mod)
 }
 
 static void
-exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
+scheme_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
 {
 	const char* irc_cmd = ircium_message_get_command (msg);
 	mod_entry* me = g_hash_table_lookup (irc_hooks, irc_cmd);
@@ -83,7 +83,7 @@ exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
 }
 
 void
-add_command_hook (const char *command, sexp func, module *mod)
+scheme_add_command_hook (const char *command, sexp func, module *mod)
 {
 	mod_entry *me = malloc(sizeof(mod_entry));
 	me->mod = mod;
@@ -93,7 +93,7 @@ add_command_hook (const char *command, sexp func, module *mod)
 }
 
 static void
-exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
+scheme_exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 {
 	const char* irc_cmd = ircium_message_get_command (msg);
 	if (strcmp(irc_cmd, "PRIVMSG") != 0)
@@ -114,7 +114,7 @@ exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 		cmd[j++] = text[i++];
 	cmd[j] = '\0';
 
-	mod_entry* me = g_hash_table_lookup (irc_hooks, cmd);
+	mod_entry* me = g_hash_table_lookup (command_hooks, cmd);
 	if (me == NULL)
 		return;
 
@@ -127,14 +127,10 @@ scheme_run_module_entry (mod_entry* me,
                          const irc_server* s,
                          const IrciumMessage* msg)
 {
-	sexp ctx = me->mod->scheme_ctx;
-	sexp id = sexp_make_integer(ctx, me->mod->id);
-	sexp id_sym = sexp_intern(ctx, "circ-module-id", -1);
-
 	pthread_mutex_lock (&me->mod->mtx);
-	sexp_env_define(ctx, sexp_context_env (ctx), id_sym, id);
 	me->mod->mod_ctx.serv = s;
 	me->mod->mod_ctx.msg = msg;
+	sexp_apply(me->mod->scheme_ctx, me->func, SEXP_NULL);
 	pthread_mutex_unlock (&me->mod->mtx);
 }
 
@@ -165,20 +161,11 @@ scheme_load_modules (char* dir)
 	FTS* f = fts_open (paths, FTS_LOGICAL | FTS_NOSTAT, NULL);
 	FTSENT* fe;
 
-	module* mod = module_list;
-
-	while ((fe = fts_read (f))) {
+	while ((fe = fts_read (f)))
 		if (strlen (fe->fts_name) > 4 &&
 		    (strncmp (fe->fts_name + (fe->fts_namelen - 4), ".scm", 4) == 0 ||
-		     strncmp (fe->fts_name + (fe->fts_namelen - 2), ".ss", 2) == 0)) {
-			if (mod == NULL) {
-				module_list = mod = scheme_create_module (fe->fts_path);
-			} else {
-				mod->next = scheme_create_module (fe->fts_path);
-				mod = mod->next;
-			}
-		}
-	}
+		     strncmp (fe->fts_name + (fe->fts_namelen - 2), ".ss", 2) == 0))
+				scheme_create_module (fe->fts_path);
 }
 
 static module*
@@ -189,12 +176,18 @@ scheme_create_module (char* path)
 	mod->path = strdup (path);
 	pthread_mutex_init (&mod->mtx, NULL);
 
+	scheme_register_module (mod);
+
 	mod->scheme_ctx = sexp_make_eval_context (NULL, NULL, NULL, 0, 0);
 	sexp ctx = mod->scheme_ctx;
 	sexp_load_standard_env (ctx, NULL, SEXP_SEVEN);
 	sexp_load_standard_ports (ctx, NULL, stdin, stdout, stderr, 1);
 
-	define_foreign_functions (ctx);
+	sexp id = sexp_make_integer(ctx, mod->id);
+	sexp id_sym = sexp_intern(ctx, "circ-module-id", -1);
+	sexp_env_define(ctx, sexp_context_env (ctx), id_sym, id);
+
+	scmapi_define_foreign_functions (ctx);
 
 	sexp_gc_var1 (obj);
 	sexp_gc_preserve1 (ctx, obj);
@@ -204,10 +197,27 @@ scheme_create_module (char* path)
 	return mod;
 }
 
+static void
+scheme_register_module (module* mod)
+{
+	module* modlist = module_list;
+	if (modlist == NULL) {
+		module_list = mod;
+		return;
+	}
+
+	while (modlist->next != NULL)
+		modlist = modlist->next;
+	modlist->next = mod;
+}
+
 module*
-get_module_from_id (int id)
+scheme_get_module_from_id (int id)
 {
 	module* mod = module_list;
+	if (mod == NULL)
+		return NULL;
+
 	while ((mod = mod->next))
 		if (mod->id == id)
 			return mod;
