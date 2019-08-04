@@ -1,8 +1,8 @@
 #ifndef IRC_HOOKS_H
 #define IRC_HOOKS_H
 
-#include "ircium-parser/ircium-message.h"
 #include "irc.h"
+#include "ircium-parser/ircium-message.h"
 
 typedef struct irc_hook
 {

@@ -1,6 +1,6 @@
-#include "irc/irc.h"
-#include "cJSON/cJSON.h"
 #include "config.h"
+#include "cJSON/cJSON.h"
+#include "irc/irc.h"
 #include "log/log.h"
 #include "utlist/list.h"
 #include <err.h> // err for panics
@@ -20,23 +20,24 @@ get_config ()
 void
 free_config ()
 {
-    free (config->server->name);
-    free (config->server->host);
-    free (config->server->port);
+	free (config->server->name);
+	free (config->server->host);
+	free (config->server->port);
 
-    free (config->server->user->nickname);
-    free (config->server->user->ident);
-    free (config->server->user->realname);
-    free (config->server->user->sasl_user);
-    free (config->server->user->sasl_pass);
-    free (config->server->user);
+	free (config->server->user->nickname);
+	free (config->server->user->ident);
+	free (config->server->user->realname);
+	free (config->server->user->sasl_user);
+	free (config->server->user->sasl_pass);
+	free (config->server->user);
 
-    /* now delete each element, use the safe iterator */
-    struct irc_channel *l, *tmp;
-    LL_FOREACH_SAFE(config->server->channels,l,tmp) {
-      LL_DELETE(config->server->channels,l);
-      free(l);
-    }
+	/* now delete each element, use the safe iterator */
+	struct irc_channel *l, *tmp;
+	LL_FOREACH_SAFE (config->server->channels, l, tmp)
+	{
+		LL_DELETE (config->server->channels, l);
+		free (l);
+	}
 }
 
 int
@@ -185,17 +186,17 @@ parse_config (const char* config_file_path)
 
 		/* Iter channels and add to the server */
 		cJSON* channel = NULL;
-        int channel_iter = 0;
-        char *channel_string;
-        config->server->channels = NULL;
-        cJSON* channels = cJSON_GetObjectItemCaseSensitive (server, "channels");
+		int channel_iter = 0;
+		char* channel_string;
+		config->server->channels = NULL;
+		cJSON* channels = cJSON_GetObjectItemCaseSensitive (server, "channels");
 		cJSON_ArrayForEach (channel, channels)
 		{
-            if (cJSON_IsString (channel)) {
-                struct irc_channel *item;
-                item = (irc_channel *)malloc(sizeof *item);
-                strcpy (item->channel, channel->valuestring);
-                LL_APPEND(config->server->channels, item);
+			if (cJSON_IsString (channel)) {
+				struct irc_channel* item;
+				item = (irc_channel*)malloc (sizeof *item);
+				strcpy (item->channel, channel->valuestring);
+				LL_APPEND (config->server->channels, item);
 			} else
 				err (1, "config: channel is not a string");
 		}
