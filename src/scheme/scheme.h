@@ -1,9 +1,10 @@
-#include <chibi/eval.h>
 #include "irc-parser/ircium-message.h"
+#include <chibi/eval.h>
 
-typedef struct mod_context {
-	const irc_server *serv;
-	const IrciumMessage *msg;
+typedef struct mod_context
+{
+	const irc_server* serv;
+	const IrciumMessage* msg;
 } mod_context;
 
 typedef struct module
@@ -19,10 +20,10 @@ typedef struct module
 void
 scheme_init (void);
 module*
-scheme_get_module_from_id(int id);
+scheme_get_module_from_id (int id);
 void
-scheme_add_irc_hook (const char *command, sexp func, module *mod);
+scheme_add_irc_hook (const char* command, sexp func, module* mod);
 void
-scheme_add_command_hook (const char *command, sexp func, module *mod);
+scheme_add_command_hook (const char* command, sexp func, module* mod);
 void
 scmapi_define_foreign_functions (sexp ctx);
