@@ -65,5 +65,7 @@ main (int argc, char** argv)
 	 */
 	irc_do_event_loop (&s);
 
+    atexit(free_config);
+
 	return 0;
 }

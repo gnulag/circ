@@ -25,7 +25,7 @@ typedef struct UserType
 
 typedef struct ChannelType
 {
-    char channel[8000];
+    char channel[1024];
     struct ChannelType *next;
 } ChannelType;
 
@@ -36,7 +36,6 @@ typedef struct ServerType
     char *port;
     bool secure;
     struct UserType *user;
-    char *channel_string;
     struct ChannelType *channels;
 } ServerType;
 
@@ -59,3 +58,4 @@ typedef struct ConfigType
 // configstruct* config;
 struct ConfigType* get_config();
 int parse_config (const char *config_file_path);
+void free_config ();

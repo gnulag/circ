@@ -16,6 +16,28 @@ get_config ()
 	return config;
 }
 
+void
+free_config ()
+{
+    free (config->server->name);
+    free (config->server->host);
+    free (config->server->port);
+
+    free (config->server->user->nickname);
+    free (config->server->user->ident);
+    free (config->server->user->realname);
+    free (config->server->user->sasl_user);
+    free (config->server->user->sasl_pass);
+    free (config->server->user);
+
+    /* now delete each element, use the safe iterator */
+    struct ChannelType *l, *tmp;
+    LL_FOREACH_SAFE(config->server->channels,l,tmp) {
+      LL_DELETE(config->server->channels,l);
+      free(l);
+    }
+}
+
 int
 parse_config (const char* config_file_path)
 {
