@@ -45,8 +45,6 @@ scheme_run_module_entry (mod_entry* me,
                          const irc_server* s,
                          const IrciumMessage* msg);
 static void
-to_scheme (const irc_server* s, const IrciumMessage* msg);
-static void
 scheme_load_modules (char* dir);
 static module*
 scheme_create_module (char* path);

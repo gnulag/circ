@@ -19,9 +19,6 @@
 
 #include "b64/b64.h"
 
-/* TODO: this must be removed */
-#include "config/config.h"
-
 #include "ircium-parser/ircium-message.h"
 #include "log/log.h"
 
@@ -138,7 +135,6 @@ verify_socket (int sock)
 int
 irc_server_connect (const irc_server* s)
 {
-	config_t* config = get_config ();
 	/*
 	 * For now, don't attempt to connect if we're already connected
 	 * to this server or if we have too many connections

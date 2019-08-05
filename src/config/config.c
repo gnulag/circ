@@ -194,8 +194,6 @@ parse_config (const char* config_file_path)
 
 		/* Iter channels and add to the server */
 		cJSON* channel = NULL;
-		int channel_iter = 0;
-		char* channel_string;
 		config->server->channels = NULL;
 		cJSON* channels = cJSON_GetObjectItemCaseSensitive (server, "channels");
 		cJSON_ArrayForEach (channel, channels)
