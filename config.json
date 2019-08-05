@@ -1,4 +1,7 @@
 {
+    "debug": true,
+    "cmd_prefix": "%",
+    "scheme_mod_dir": "./scheme_mods/",
     "server": {
         "name": "Snoonet",
         "host": "irc.snoonet.org",

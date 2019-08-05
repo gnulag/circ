@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "config/config.h"
 #include "irc/hooks.h"
+#include "log/log.h"
 #include "scheme.h"
 
 #define MAX_COMMAND_SIZE 4096
@@ -33,8 +35,6 @@ static GHashTable* command_hooks;
  * IRC command -> mod_entry*
  */
 static GHashTable* irc_hooks;
-
-static char* cmd_prefix;
 
 static void
 scheme_exec_irc_hooks (const irc_server* s, const IrciumMessage* msg);
@@ -96,6 +96,8 @@ scheme_add_command_hook (const char* command, sexp func, module* mod)
 static void
 scheme_exec_command_hooks (const irc_server* s, const IrciumMessage* msg)
 {
+	config_t* config = get_config ();
+
 	const char* irc_cmd = ircium_message_get_command (msg);
 	if (strcmp (irc_cmd, "PRIVMSG") != 0)
 		return;
@@ -103,10 +105,10 @@ scheme_exec_command_hooks (const irc_server* s, const IrciumMessage* msg)
 	const GPtrArray* params = ircium_message_get_params (msg);
 	const char* text = params->pdata[1];
 	size_t text_len = strlen (text);
-	size_t cmd_prefix_len = strlen (cmd_prefix);
+	size_t cmd_prefix_len = strlen (config->cmd_prefix);
 
 	if (text_len < cmd_prefix_len ||
-	    strncmp (text, cmd_prefix, cmd_prefix_len) != 0)
+	    strncmp (text, config->cmd_prefix, cmd_prefix_len) != 0)
 		return;
 
 	int i = cmd_prefix_len, j = 0;
@@ -139,20 +141,14 @@ scheme_run_module_entry (mod_entry* me,
 void
 scheme_init ()
 {
-	char* mods_dir = getenv ("SCHEME_MOD_DIR");
-	if (mods_dir == NULL)
-		mods_dir = "scheme_mods/";
-
-	cmd_prefix = getenv ("CIRC_CMD_PREFIX");
-	if (cmd_prefix == NULL)
-		cmd_prefix = ".";
+	config_t* config = get_config ();
 
 	if (irc_hooks == NULL)
 		irc_hooks = g_hash_table_new (g_str_hash, g_str_equal);
 	if (command_hooks == NULL)
 		command_hooks = g_hash_table_new (g_str_hash, g_str_equal);
 
-	scheme_load_modules (mods_dir);
+	scheme_load_modules (config->scheme_mod_dir);
 	add_hook ("*", scheme_entry);
 }
 
@@ -163,11 +159,15 @@ scheme_load_modules (char* dir)
 	FTS* f = fts_open (paths, FTS_LOGICAL | FTS_NOSTAT, NULL);
 	FTSENT* fe;
 
+	log_info ("-----\nLoading Modules:\n");
 	while ((fe = fts_read (f)))
 		if (strlen (fe->fts_name) > 4 &&
 		    (strncmp (fe->fts_name + (fe->fts_namelen - 4), ".scm", 4) == 0 ||
-		     strncmp (fe->fts_name + (fe->fts_namelen - 2), ".ss", 2) == 0))
+		     strncmp (fe->fts_name + (fe->fts_namelen - 2), ".ss", 2) == 0)) {
+			log_info ("%s\n", fe->fts_name);
 			scheme_create_module (fe->fts_path);
+		}
+	log_info ("-----\n");
 }
 
 static module*

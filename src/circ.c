@@ -13,9 +13,9 @@
 #include "b64/b64.h"
 #include "utlist/list.h"
 
-#include "log/log.h"
-#include "ircium-parser/ircium-message.h"
 #include "irc/hooks.h"
+#include "ircium-parser/ircium-message.h"
+#include "log/log.h"
 
 #include "scheme/scheme.h"
 
@@ -54,6 +54,8 @@ main (int argc, char** argv)
 	           config->server->user->nickname,
 	           config->server->user->ident,
 	           config->server->user->realname);
+
+	log_info ("-----\nCommand Prefix: %s\n-----\n", config->cmd_prefix);
 
 	struct irc_channel* elt;
 	LL_FOREACH (config->server->channels, elt)

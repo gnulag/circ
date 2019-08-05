@@ -1,5 +1,5 @@
-#include "config.h"
 #include "cJSON/cJSON.h"
+#include "config.h"
 #include "irc/irc.h"
 #include "log/log.h"
 #include "utlist/list.h"
@@ -88,6 +88,31 @@ parse_config (const char* config_file_path)
 		config->debug = true;
 	else
 		config->debug = false;
+
+	cJSON* cmd_prefix = cJSON_GetObjectItemCaseSensitive (json, "cmd_prefix");
+	if (cJSON_IsString (cmd_prefix) && cmd_prefix->valuestring != NULL) {
+		config->cmd_prefix = malloc (sizeof (cmd_prefix->valuestring));
+		strncpy (config->cmd_prefix,
+		         cmd_prefix->valuestring,
+		         sizeof (cmd_prefix->valuestring));
+	} else {
+		config->cmd_prefix = malloc (sizeof ("%"));
+		strncpy (config->cmd_prefix, "%", sizeof ("%"));
+	}
+
+	cJSON* scheme_mod_dir =
+	  cJSON_GetObjectItemCaseSensitive (json, "scheme_mod_dir");
+	if (cJSON_IsString (scheme_mod_dir) &&
+	    scheme_mod_dir->valuestring != NULL) {
+		config->scheme_mod_dir = malloc (sizeof (scheme_mod_dir->valuestring));
+		strncpy (config->scheme_mod_dir,
+		         scheme_mod_dir->valuestring,
+		         strlen (scheme_mod_dir->valuestring));
+	} else {
+		config->scheme_mod_dir = malloc (sizeof ("scheme_mods/"));
+		strncpy (
+		  config->scheme_mod_dir, "scheme_mods/", strlen ("scheme_mods/"));
+	}
 
 	/* Parse Servers section */
 	cJSON* server = cJSON_GetObjectItemCaseSensitive (json, "server");
