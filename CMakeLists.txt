@@ -26,12 +26,34 @@ add_executable(circ ${CIRC_SOURCES})
 find_library(LIBEV_LIBS     NAMES ev           REQUIRED)
 find_library(LIBGNUTLS_LIBS NAMES gnutls       REQUIRED)
 find_package(GLIB           COMPONENTS gobject REQUIRED)
-find_library(LIBCHIBI_LIBS  NAMES chibi-scheme REQUIRED)
+
+# get and build chibi
+if(NOT IS_DIRECTORY ${CMAKE_BINARY_DIR}/chibi-scheme)
+	execute_process(
+		COMMAND git clone git@github.com:ashinn/chibi-scheme
+		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+	)
+endif()
+
+include(ProcessorCount)
+ProcessorCount(num_cpus)
+
+execute_process(
+	COMMAND make -j${num_cpus}
+	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/chibi-scheme
+)
+
+find_library(LIBCHIBI_LIBS
+	NAMES chibi-scheme
+	PATHS ${CMAKE_BINARY_DIR}/chibi-scheme
+	REQUIRED
+)
 
 target_include_directories(circ
 	PRIVATE src
 	PRIVATE thirdparty
 	PRIVATE ${GLIB_INCLUDE_DIRS}
+	PRIVATE ${CMAKE_BINARY_DIR}/chibi-scheme/include
 )
 
 target_link_libraries(circ
