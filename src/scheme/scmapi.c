@@ -30,7 +30,7 @@ scmapi_register_command (sexp ctx, sexp self, sexp n, sexp cmd, sexp func)
 }
 
 sexp
-scmapi_reply (sexp ctx, sexp self, sexp text)
+scmapi_reply (sexp ctx, sexp self, sexp n, sexp text)
 {
 	scm_module* mod = get_module (ctx);
 
