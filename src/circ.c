@@ -66,7 +66,7 @@ main (int argc, char** argv)
 	register_core_hooks ();
 
 	log_info ("setting up connection\n");
-	int ret = irc_server_connect ();
+	int ret = irc_server_connect (config->server);
 	if (ret == -1) {
 		err (1, "Error Connecting");
 	}

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../irc/hooks.h"
+#include "irc/hooks.h"
 #include "scheme.h"
 
 #define MAX_COMMAND_SIZE 4096

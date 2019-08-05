@@ -1,4 +1,7 @@
-#include "irc-parser/ircium-message.h"
+#ifndef SCHEME_H
+#define SCHEME_H
+
+#include "ircium-parser/ircium-message.h"
 #include <chibi/eval.h>
 
 typedef struct mod_context
@@ -27,3 +30,5 @@ void
 scheme_add_command_hook (const char* command, sexp func, module* mod);
 void
 scmapi_define_foreign_functions (sexp ctx);
+
+#endif

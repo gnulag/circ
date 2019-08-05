@@ -10,9 +10,11 @@ g_free_irc_hook (gpointer hook);
 void
 free_irc_hook (irc_hook* hook);
 irc_hook*
-create_irc_hook (const char* command, void (*f) (irc_server*, IrciumMessage*));
+create_irc_hook (const char* command, void (*f) (const irc_server*, const IrciumMessage*));
 static irc_hook*
 get_hooks_private (const char* command);
+static gboolean
+command_strings_equal (gconstpointer a, gconstpointer b);
 
 void
 init_hooks (void)
@@ -20,8 +22,14 @@ init_hooks (void)
 	if (hooks != NULL)
 		return;
 
-	hooks =
-	  g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free_irc_hook);
+	hooks = g_hash_table_new_full (
+	  g_str_hash, command_strings_equal, g_free, g_free_irc_hook);
+}
+
+static gboolean
+command_strings_equal (gconstpointer a, gconstpointer b)
+{
+	return strcmp ((const char*)a, (const char*)b) == 0;
 }
 
 void
@@ -43,7 +51,7 @@ free_irc_hook (irc_hook* hook)
 }
 
 irc_hook*
-create_irc_hook (const char* command, void (*f) (irc_server*, IrciumMessage*))
+create_irc_hook (const char* command, void (*f) (const irc_server*, const IrciumMessage*))
 {
 	irc_hook* hook = malloc (sizeof (irc_hook));
 	hook->command = strdup (command);
@@ -54,12 +62,14 @@ create_irc_hook (const char* command, void (*f) (irc_server*, IrciumMessage*))
 }
 
 void
-add_hook (const char* command, void (*f) (irc_server*, IrciumMessage*))
+add_hook (const char* command, void (*f) (const irc_server*, const IrciumMessage*))
 {
 	irc_hook* hook = create_irc_hook (command, f);
 	irc_hook* head = get_hooks_private (command);
 	if (head == NULL) {
 		g_hash_table_insert (hooks, hook->command, hook);
+	} else if (head == NULL) {
+		head = hook;
 	} else {
 		while (head->next != NULL)
 			head = head->next;
@@ -80,7 +90,7 @@ get_hooks (const char* command)
 }
 
 void
-exec_hooks (irc_server* s, const char* command, IrciumMessage* msg)
+exec_hooks (const irc_server* s, const char* command, const IrciumMessage* msg)
 {
 	const irc_hook* hook;
 	for (hook = get_hooks (command); hook != NULL; hook = hook->next)

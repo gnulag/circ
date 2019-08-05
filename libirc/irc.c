@@ -136,14 +136,14 @@ verify_socket (int sock)
  * return -1 if there's an error, 0 if it succeeded
  */
 int
-irc_server_connect (void)
+irc_server_connect (const irc_server* s)
 {
 	config_t* config = get_config ();
 	/*
 	 * For now, don't attempt to connect if we're already connected
 	 * to this server or if we have too many connections
 	 */
-	if (server_connected (config->server)) {
+	if (server_connected (s)) {
 		log_info ("Server already connected");
 		return -1;
 	}
@@ -153,12 +153,12 @@ irc_server_connect (void)
 		return -1;
 	}
 
-	int sock = irc_create_socket (config->server);
+	int sock = irc_create_socket (s);
 	if (sock == -1) {
 		err (1, "failed creating socket");
 	}
 
-	int ret = setup_irc_connection (config->server, sock);
+	int ret = setup_irc_connection (s, sock);
 	if (ret == 1)
 		err (1, "failed creating connection");
 	else if (ret != 0) {
@@ -253,7 +253,6 @@ irc_process_message_queue (irc_connection* conn)
 static void
 handle_message (irc_connection* conn, const char* message)
 {
-	GByteArray* gbuf = NULL;
 	size_t msg_len = strlen (message);
 
 	if (msg_len == 0)
@@ -261,19 +260,12 @@ handle_message (irc_connection* conn, const char* message)
 
 	GByteArray *gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
-	IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
+	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 	const char* command = ircium_message_get_command (parsed_message);
 	exec_hooks (conn->server, command, parsed_message);
+	exec_hooks (conn->server, "*",     parsed_message);
 
 	g_byte_array_unref (gbuf);
-<<<<<<< HEAD
-	g_object_unref (parsed_message);
-=======
-
-	const char* cmd = ircium_message_get_command (parsed_message);
-	exec_hooks (conn->server, cmd, parsed_message);
-	exec_hooks (conn->server, "*", parsed_message);
->>>>>>> Add a command argument to the exec_hooks function for the "*" hook
 }
 
 /* irc_read_message reads an IRC message to a buffer */
@@ -299,7 +291,7 @@ irc_read_message (const irc_server* s, char buf[IRC_MESSAGE_SIZE])
 	return i;
 }
 
-/* Read nbytes from the irc_server s's connection */
+/* Read nbytes from the irc_server's connection */
 int
 irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 {
@@ -321,7 +313,7 @@ irc_read_bytes (const irc_server* s, char* buf, size_t nbytes)
 
 /* Serialize an IrciumMessage and send it to the server */
 int
-irc_write_message (const irc_server* s, IrciumMessage* message)
+irc_write_message (const irc_server* s, const IrciumMessage* message)
 {
 	GBytes* bytes = ircium_message_serialize (message);
 
@@ -338,9 +330,9 @@ irc_write_message (const irc_server* s, IrciumMessage* message)
 	return ret;
 }
 
-/* Write nbytes to the irc_server s's connection */
+/* Write nbytes to the irc_server's connection */
 int
-irc_write_bytes (const irc_server* s, guint8* buf, size_t nbytes)
+irc_write_bytes (const irc_server* s, const guint8* buf, size_t nbytes)
 {
 	if (buf == NULL)
 		return -1;
@@ -373,7 +365,7 @@ irc_create_socket (const irc_server* s)
 	hints.ai_socktype = SOCK_STREAM;
 	ret = getaddrinfo (s->host, s->port, &hints, &ai);
 	ai_head = ai;
-	if (!ret) {
+	if (ret) {
 		perror ("client: address");
 		exit (EXIT_FAILURE);
 	}
@@ -523,7 +515,7 @@ quit_irc_connection (const irc_server* s)
 
 	GPtrArray* pass_params = g_ptr_array_new_full (1, g_free);
 	g_ptr_array_add (pass_params, "go i must now");
-	IrciumMessage* pass_cmd =
+	const IrciumMessage* pass_cmd =
 	  ircium_message_new (NULL, NULL, "QUIT", pass_params);
 
 	int ret = irc_write_message (s, pass_cmd);
