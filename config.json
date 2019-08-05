@@ -16,7 +16,7 @@
             "realname": "circy",
             "sasl_enabled": false,
             "sasl_user": "circ",
-            "sasl_pass": "circ",
+            "sasl_pass": "circ"
         }
     },
     "modules": [
@@ -24,7 +24,7 @@
             "name": "wolfram",
             "matchers": ["^wa"],
             "cmd": "wolfram",
-            "cwd": "~/.circ/plugins",
+            "cwd": "~/.circ/plugins"
         }
     ]
 }

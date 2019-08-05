@@ -33,8 +33,14 @@ sexp
 scmapi_reply (sexp ctx, sexp self, sexp text)
 {
 	scm_module* mod = get_module (ctx);
+
 	if (mod == NULL)
 		return SEXP_NULL;
+
+	if (!sexp_stringp(text)) {
+		printf("scmapi_reply: %s: The argument is not a string\n", mod->path);
+		return SEXP_NULL;
+	}
 
 	const irc_server* s = mod->mod_ctx.serv;
 	const char* text_c = sexp_string_data (text);
@@ -45,7 +51,7 @@ scmapi_reply (sexp ctx, sexp self, sexp text)
 		return SEXP_NULL;
 
 	char buf[4096];
-	snprintf (buf, 4096, "PRIVMSG %s :%s\r\n\0", params->pdata[0], text_c);
+	snprintf (buf, 4096, "PRIVMSG %s :%s\r\n", params->pdata[0], text_c);
 	irc_write_bytes (s, buf, strlen (buf));
 
 	return SEXP_NULL;
