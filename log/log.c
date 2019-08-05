@@ -1,3 +1,4 @@
+#include "../src/config/config.h"
 #include "log.h"
 #include <stdarg.h>
 #include <stdio.h>

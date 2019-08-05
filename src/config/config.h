@@ -1,7 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <glib.h>
 #include <stdbool.h>
 
 #define DEBUG (get_config () && get_config ()->debug)
