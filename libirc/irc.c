@@ -325,14 +325,14 @@ irc_write_message (const irc_server* s, const IrciumMessage* message)
 	size_t size = len;
 	int ret = irc_write_bytes (s, (char*)data, size);
 
-	g_object_unref (message);
+	g_object_unref ((gpointer) message);
 
 	return ret;
 }
 
 /* Write nbytes to the irc_server's connection */
 int
-irc_write_bytes (const irc_server* s, const guint8* buf, size_t nbytes)
+irc_write_bytes (const irc_server* s, const char* buf, size_t nbytes)
 {
 	if (buf == NULL)
 		return -1;

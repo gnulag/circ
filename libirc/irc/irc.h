@@ -48,7 +48,7 @@ irc_read_bytes (const irc_server*, char*, size_t);
 int
 irc_write_message (const irc_server* s, const IrciumMessage* message);
 int
-irc_write_bytes (const irc_server* s, const guint8* buf, size_t nbytes);
+irc_write_bytes (const irc_server* s, const char* buf, size_t nbytes);
 const irc_server*
 irc_get_server_from_name (const char* name);
 const char*
