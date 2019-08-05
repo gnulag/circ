@@ -1,5 +1,5 @@
-#include "cJSON/cJSON.h"
 #include "config.h"
+#include "cJSON/cJSON.h"
 #include "irc/irc.h"
 #include "log/log.h"
 #include "utlist/list.h"
@@ -91,27 +91,18 @@ parse_config (const char* config_file_path)
 
 	cJSON* cmd_prefix = cJSON_GetObjectItemCaseSensitive (json, "cmd_prefix");
 	if (cJSON_IsString (cmd_prefix) && cmd_prefix->valuestring != NULL) {
-		config->cmd_prefix = malloc (sizeof (cmd_prefix->valuestring));
-		strncpy (config->cmd_prefix,
-		         cmd_prefix->valuestring,
-		         strlen (cmd_prefix->valuestring));
+		config->cmd_prefix = strdup (cmd_prefix->valuestring);
 	} else {
-		config->cmd_prefix = malloc (sizeof ("%"));
-		strncpy (config->cmd_prefix, "%", sizeof ("%"));
+		config->cmd_prefix = strdup ("%");
 	}
 
 	cJSON* scheme_mod_dir =
 	  cJSON_GetObjectItemCaseSensitive (json, "scheme_mod_dir");
 	if (cJSON_IsString (scheme_mod_dir) &&
 	    scheme_mod_dir->valuestring != NULL) {
-		config->scheme_mod_dir = malloc (sizeof (scheme_mod_dir->valuestring));
-		strncpy (config->scheme_mod_dir,
-		         scheme_mod_dir->valuestring,
-		         strlen (scheme_mod_dir->valuestring));
+		config->scheme_mod_dir = strdup (scheme_mod_dir->valuestring);
 	} else {
-		config->scheme_mod_dir = malloc (sizeof ("scheme_mods/"));
-		strncpy (
-		  config->scheme_mod_dir, "scheme_mods/", strlen ("scheme_mods/"));
+		config->scheme_mod_dir = strdup ("scheme_mods/");
 	}
 
 	/* Parse Servers section */
@@ -121,22 +112,19 @@ parse_config (const char* config_file_path)
 
 		cJSON* name = cJSON_GetObjectItemCaseSensitive (server, "name");
 		if (cJSON_IsString (name) && (name->valuestring != NULL)) {
-			config->server->name = malloc (sizeof (name->valuestring));
-			strcpy (config->server->name, name->valuestring);
+			config->server->name = strdup (name->valuestring);
 		} else
 			err (1, "config: name is not a string");
 
 		cJSON* host = cJSON_GetObjectItemCaseSensitive (server, "host");
 		if (cJSON_IsString (host) && (host->valuestring != NULL)) {
-			config->server->host = malloc (sizeof (host->valuestring));
-			strcpy (config->server->host, host->valuestring);
+			config->server->host = strdup (host->valuestring);
 		} else
 			err (1, "config: host is not a string");
 
 		cJSON* port = cJSON_GetObjectItemCaseSensitive (server, "port");
 		if (cJSON_IsString (port) && (port->valuestring != NULL)) {
-			config->server->port = malloc (sizeof (port->valuestring));
-			strcpy (config->server->port, port->valuestring);
+			config->server->port = strdup (port->valuestring);
 		} else
 			err (1, "config: port is not a string");
 
@@ -157,23 +145,20 @@ parse_config (const char* config_file_path)
 			cJSON* nickname =
 			  cJSON_GetObjectItemCaseSensitive (user, "nickname");
 			if (cJSON_IsString (nickname) && (nickname->valuestring != NULL)) {
-				tmp_user->nickname = malloc (strlen (nickname->valuestring));
-				strcpy (tmp_user->nickname, nickname->valuestring);
+				tmp_user->nickname = strdup (nickname->valuestring);
 			} else
 				err (1, "config: nickname is not a string");
 
 			cJSON* ident = cJSON_GetObjectItemCaseSensitive (user, "ident");
 			if (cJSON_IsString (ident) && (ident->valuestring != NULL)) {
-				tmp_user->ident = malloc (strlen (ident->valuestring));
-				strcpy (tmp_user->ident, ident->valuestring);
+				tmp_user->ident = strdup (ident->valuestring);
 			} else
 				err (1, "config: ident is not a string");
 
 			cJSON* realname =
 			  cJSON_GetObjectItemCaseSensitive (user, "realname");
 			if (cJSON_IsString (realname) && (realname->valuestring != NULL)) {
-				tmp_user->realname = malloc (strlen (realname->valuestring));
-				strcpy (tmp_user->realname, realname->valuestring);
+				tmp_user->realname = strdup (realname->valuestring);
 			} else
 				err (1, "config: realname is not a string");
 
@@ -190,8 +175,7 @@ parse_config (const char* config_file_path)
 			  cJSON_GetObjectItemCaseSensitive (user, "sasl_user");
 			if (cJSON_IsString (sasl_user) &&
 			    (sasl_user->valuestring != NULL)) {
-				tmp_user->sasl_user = malloc (strlen (sasl_user->valuestring));
-				strcpy (tmp_user->sasl_user, sasl_user->valuestring);
+				tmp_user->sasl_user = strdup (sasl_user->valuestring);
 			} else
 				err (1, "config: sasl_user is not a string");
 
@@ -199,8 +183,7 @@ parse_config (const char* config_file_path)
 			  cJSON_GetObjectItemCaseSensitive (user, "sasl_pass");
 			if (cJSON_IsString (sasl_pass) &&
 			    (sasl_pass->valuestring != NULL)) {
-				tmp_user->sasl_pass = malloc (strlen (sasl_pass->valuestring));
-				strcpy (tmp_user->sasl_pass, sasl_pass->valuestring);
+				tmp_user->sasl_pass = strdup (sasl_pass->valuestring);
 			} else
 				err (1, "config: sasl_pass is not a string");
 
@@ -220,7 +203,8 @@ parse_config (const char* config_file_path)
 			if (cJSON_IsString (channel)) {
 				struct irc_channel* item;
 				item = (irc_channel*)malloc (sizeof *item);
-				strcpy (item->channel, channel->valuestring);
+				strncpy (
+				  item->channel, channel->valuestring, sizeof (item->channel));
 				LL_APPEND (config->server->channels, item);
 			} else
 				err (1, "config: channel is not a string");
@@ -240,8 +224,7 @@ parse_config (const char* config_file_path)
 
 			cJSON* name = cJSON_GetObjectItemCaseSensitive (module, "name");
 			if (cJSON_IsString (name) && (name->valuestring != NULL)) {
-				tmp_module->name = malloc (sizeof (name->valuestring));
-				strcpy (tmp_module->name, name->valuestring);
+				tmp_module->name = strdup (name->valuestring);
 			} else
 				err (1, "config: module: name is not a string");
 
@@ -253,9 +236,7 @@ parse_config (const char* config_file_path)
 			{
 				if (cJSON_IsString (matcher) && matcher->valuestring != NULL) {
 					tmp_module->matchers[matcher_iter] =
-					  malloc (strlen (matcher->valuestring));
-					strcpy (tmp_module->matchers[matcher_iter],
-					        matcher->valuestring);
+					  strdup (matcher->valuestring);
 					matcher_iter++;
 				} else
 					err (1, "config: module: matchers is not a string");
@@ -263,15 +244,13 @@ parse_config (const char* config_file_path)
 
 			cJSON* cmd = cJSON_GetObjectItemCaseSensitive (module, "cmd");
 			if (cJSON_IsString (cmd) && (cmd->valuestring != NULL)) {
-				tmp_module->cmd = malloc (sizeof (cmd->valuestring));
-				strcpy (tmp_module->cmd, cmd->valuestring);
+				tmp_module->cmd = strdup (cmd->valuestring);
 			} else
 				err (1, "config: module: cmd is not a string");
 
 			cJSON* cwd = cJSON_GetObjectItemCaseSensitive (module, "cwd");
 			if (cJSON_IsString (cwd) && (cwd->valuestring != NULL)) {
-				tmp_module->cwd = malloc (sizeof (cwd->valuestring));
-				strcpy (tmp_module->cwd, cwd->valuestring);
+				tmp_module->cwd = strdup (cwd->valuestring);
 			} else
 				err (1, "config: module: cwd is not a string");
 
