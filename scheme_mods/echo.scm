@@ -1,4 +1,10 @@
+(import (chibi string))
+
 (define (echo)
-  (reply (cadr (get-message-params))))
+  (let*
+    ((text (cadr (get-message-params)))
+     (words (string-split text))
+     (rest (string-join (cdr words) " ")))
+    (reply rest)))
 
 (register-command "echo" echo)
