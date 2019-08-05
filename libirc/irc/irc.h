@@ -2,8 +2,8 @@
 #define IRC_H
 
 #include "ircium-parser/ircium-message.h"
-#include <stdbool.h>
 #include <glib.h>
+#include <stdbool.h>
 
 typedef struct irc_user
 {
@@ -36,7 +36,7 @@ void
 register_core_hooks (void);
 
 int
-irc_server_connect (const irc_server *);
+irc_server_connect (const irc_server*);
 void
 irc_do_event_loop (const irc_server*);
 void

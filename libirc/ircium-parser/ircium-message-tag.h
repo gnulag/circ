@@ -28,10 +28,10 @@ G_BEGIN_DECLS
 #define IRCIUM_TYPE_MESSAGE_TAG (ircium_message_tag_get_type ())
 
 G_DECLARE_FINAL_TYPE (IrciumMessageTag,
-                      ircium_message_tag,
-                      IRCIUM,
-                      MESSAGE_TAG,
-                      GObject)
+		      ircium_message_tag,
+		      IRCIUM,
+		      MESSAGE_TAG,
+		      GObject)
 
 IrciumMessageTag*
 ircium_message_tag_new (void);

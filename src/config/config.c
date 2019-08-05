@@ -33,8 +33,7 @@ free_config ()
 
 	/* now delete each element, use the safe iterator */
 	struct irc_channel *l, *tmp;
-	LL_FOREACH_SAFE (config->server->channels, l, tmp)
-	{
+	LL_FOREACH_SAFE (config->server->channels, l, tmp) {
 		LL_DELETE (config->server->channels, l);
 		free (l);
 	}

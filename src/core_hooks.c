@@ -130,8 +130,7 @@ channel_join_hook (const irc_server* s, const IrciumMessage* msg)
 	log_debug ("Joining Channels: \n");
 
 	struct irc_channel* l;
-	LL_FOREACH (config->server->channels, l)
-	{
+	LL_FOREACH (config->server->channels, l) {
 		GPtrArray* join_params = g_ptr_array_new_full (1, g_free);
 		g_ptr_array_add (join_params, l->channel);
 		IrciumMessage* join_cmd =
