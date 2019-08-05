@@ -42,8 +42,8 @@ static void
 scm_exec_command_hooks (const irc_server* s, const IrciumMessage* msg);
 static void
 scm_run_module_entry (mod_entry* me,
-                         const irc_server* s,
-                         const IrciumMessage* msg);
+                      const irc_server* s,
+                      const IrciumMessage* msg);
 static void
 to_scheme (const irc_server* s, const IrciumMessage* msg);
 static void
@@ -128,8 +128,8 @@ scm_exec_command_hooks (const irc_server* s, const IrciumMessage* msg)
 
 static void
 scm_run_module_entry (mod_entry* me,
-                         const irc_server* s,
-                         const IrciumMessage* msg)
+                      const irc_server* s,
+                      const IrciumMessage* msg)
 {
 	pthread_mutex_lock (&me->mod->mtx);
 	me->mod->mod_ctx.serv = s;
