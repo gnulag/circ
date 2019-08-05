@@ -10,24 +10,24 @@ typedef struct mod_context
 	const IrciumMessage* msg;
 } mod_context;
 
-typedef struct module
+typedef struct scm_module
 {
 	int id;
 	char* path;
-	sexp scheme_ctx;
+	sexp scm_ctx;
 	mod_context mod_ctx;
 	pthread_mutex_t mtx;
-	struct module* next;
-} module;
+	struct scm_module* next;
+} scm_module;
 
 void
-scheme_init (void);
-module*
-scheme_get_module_from_id (int id);
+scm_init (void);
+scm_module*
+scm_get_module_from_id (int id);
 void
-scheme_add_irc_hook (const char* command, sexp func, module* mod);
+scm_add_irc_hook (const char* command, sexp func, scm_module* mod);
 void
-scheme_add_command_hook (const char* command, sexp func, module* mod);
+scm_add_command_hook (const char* command, sexp func, scm_module* mod);
 void
 scmapi_define_foreign_functions (sexp ctx);
 

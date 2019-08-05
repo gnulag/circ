@@ -64,7 +64,7 @@ main (int argc, char** argv)
 	}
 
 	init_hooks ();
-	scheme_init ();
+	scm_init ();
 	register_core_hooks ();
 
 	log_info ("setting up connection\n");

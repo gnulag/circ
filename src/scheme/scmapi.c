@@ -2,37 +2,37 @@
 #include "scheme.h"
 #include <string.h>
 
-static module*
+static scm_module*
 get_module (sexp ctx)
 {
 	sexp idobj =
 	  sexp_eval_string (ctx, "circ-module-id", -1, sexp_context_env (ctx));
 	int id = sexp_unbox_fixnum (idobj);
-	return scheme_get_module_from_id (id);
+	return scm_get_module_from_id (id);
 }
 
 sexp
 scmapi_register_hook (sexp ctx, sexp self, sexp n, sexp cmd, sexp func)
 {
-	module* mod = get_module (ctx);
+	scm_module* mod = get_module (ctx);
 	const char* cmd_c = sexp_string_data (cmd);
-	scheme_add_irc_hook (cmd_c, func, mod);
+	scm_add_irc_hook (cmd_c, func, mod);
 	return SEXP_NULL;
 }
 
 sexp
 scmapi_register_command (sexp ctx, sexp self, sexp n, sexp cmd, sexp func)
 {
-	module* mod = get_module (ctx);
+	scm_module* mod = get_module (ctx);
 	const char* cmd_c = sexp_string_data (cmd);
-	scheme_add_command_hook (cmd_c, func, mod);
+	scm_add_command_hook (cmd_c, func, mod);
 	return SEXP_NULL;
 }
 
 sexp
 scmapi_reply (sexp ctx, sexp self, sexp text)
 {
-	module* mod = get_module (ctx);
+	scm_module* mod = get_module (ctx);
 	if (mod == NULL)
 		return SEXP_NULL;
 
