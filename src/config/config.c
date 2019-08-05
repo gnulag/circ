@@ -94,7 +94,7 @@ parse_config (const char* config_file_path)
 		config->cmd_prefix = malloc (sizeof (cmd_prefix->valuestring));
 		strncpy (config->cmd_prefix,
 		         cmd_prefix->valuestring,
-		         sizeof (cmd_prefix->valuestring));
+		         strlen (cmd_prefix->valuestring));
 	} else {
 		config->cmd_prefix = malloc (sizeof ("%"));
 		strncpy (config->cmd_prefix, "%", sizeof ("%"));
