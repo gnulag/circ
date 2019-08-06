@@ -20,8 +20,10 @@ register_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	g_ptr_array_add (nick_params, g_strdup (config->server->user->nickname));
 	const IrciumMessage* nick_cmd =
 	  ircium_message_new (NULL, NULL, "NICK", nick_params);
-	if (irc_write_message (s, nick_cmd) == -1) {
-		perror ("client: nick_cmd");
+	int ret = irc_write_message (s, nick_cmd);
+	g_object_unref ((gpointer)nick_cmd);
+	if (ret == -1) {
+		perror ("client: user_cmd");
 		exit (EXIT_FAILURE);
 	}
 
@@ -33,7 +35,9 @@ register_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	g_ptr_array_add (user_params, g_strdup (config->server->user->realname));
 	const IrciumMessage* user_cmd =
 	  ircium_message_new (NULL, NULL, "USER", user_params);
-	if (irc_write_message (s, user_cmd) == -1) {
+	int ret = irc_write_message (s, user_cmd);
+	g_object_unref ((gpointer)user_cmd);
+	if (ret == -1) {
 		perror ("client: user_cmd");
 		exit (EXIT_FAILURE);
 	}
@@ -46,14 +50,25 @@ sasl_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	GPtrArray* cap_params = g_ptr_array_new_full (2, g_free);
 	g_ptr_array_add (cap_params, g_strdup ("REQ"));
 	g_ptr_array_add (cap_params, g_strdup ("sasl"));
-	const IrciumMessage* cap_cmd = ircium_message_new (NULL, NULL, "CAP", cap_params);
-	irc_write_message (s, cap_cmd);
+	const IrciumMessage* cap_cmd =
+	  ircium_message_new (NULL, NULL, "CAP", cap_params);
+	int ret = irc_write_message (s, cap_cmd);
+	g_object_unref ((gpointer)cap_cmd);
+	if (ret == -1) {
+		perror ("client: cap_cmd");
+		exit (EXIT_FAILURE);
+	}
 
 	GPtrArray* auth_params = g_ptr_array_new_full (1, g_free);
 	g_ptr_array_add (auth_params, g_strdup ("PLAIN"));
 	const IrciumMessage* auth_cmd =
 	  ircium_message_new (NULL, NULL, "AUTHENTICATE", auth_params);
-	irc_write_message (s, auth_cmd);
+	int ret = irc_write_message (s, auth_cmd);
+	g_object_unref ((gpointer)auth_cmd);
+	if (ret == -1) {
+		perror ("client: auth_cmd");
+		exit (EXIT_FAILURE);
+	}
 }
 
 static void
@@ -82,6 +97,11 @@ sasl_auth_hook (const irc_server* s, const IrciumMessage* msg)
 	  ircium_message_new (NULL, NULL, "AUTHENTICATE", pass_params);
 
 	int ret = irc_write_message (s, pass_cmd);
+	g_object_unref ((gpointer)pass_cmd);
+	if (ret == -1) {
+		perror ("client: pass_cmd");
+		exit (EXIT_FAILURE);
+	}
 
 	g_free (auth_string);
 
@@ -101,8 +121,10 @@ sasl_cap_hook (const irc_server* s, const IrciumMessage* msg)
 	const IrciumMessage* pass_cmd =
 	  ircium_message_new (NULL, NULL, "CAP", pass_params);
 
-	if (irc_write_message (s, pass_cmd) == -1) {
-		perror ("client: user_cmd");
+	int ret = irc_write_message (s, pass_cmd);
+	g_object_unref ((gpointer)pass_cmd);
+	if (ret == -1) {
+		perror ("client: pass_cmd");
 		exit (EXIT_FAILURE);
 	}
 }
@@ -131,7 +153,10 @@ channel_join_hook (const irc_server* s, const IrciumMessage* msg)
 		g_ptr_array_add (join_params, l->channel);
 		IrciumMessage* join_cmd =
 		  ircium_message_new (NULL, NULL, "JOIN", join_params);
-		if (irc_write_message (s, join_cmd) == -1) {
+
+		int ret = irc_write_message (s, join_cmd);
+		g_object_unref ((gpointer)join_cmd);
+		if (ret == -1) {
 			perror ("client: user_cmd");
 			exit (EXIT_FAILURE);
 		}
@@ -150,7 +175,13 @@ ping_hook (const irc_server* s, const IrciumMessage* msg)
 
 	const IrciumMessage* pong_cmd =
 	  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
-	irc_write_message (s, pong_cmd);
+
+	int ret = irc_write_message (s, pong_cmd);
+	g_object_unref ((gpointer)pong_cmd);
+	if (ret == -1) {
+		perror ("client: user_cmd");
+		exit (EXIT_FAILURE);
+	}
 }
 
 static void
@@ -162,7 +193,12 @@ invite_hook (const irc_server* s, const IrciumMessage* msg)
 
 	const IrciumMessage* join_cmd =
 	  ircium_message_new (NULL, NULL, "JOIN", msg_params);
-	irc_write_message (s, join_cmd);
+	int ret = irc_write_message (s, join_cmd);
+	g_object_unref ((gpointer)join_cmd);
+	if (ret == -1) {
+		perror ("client: user_cmd");
+		exit (EXIT_FAILURE);
+	}
 }
 
 void
