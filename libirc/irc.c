@@ -61,6 +61,8 @@ irc_process_write_message_queue (irc_connection* conn);
 static int
 irc_read_bytes (const irc_server*, char*, size_t);
 static int
+irc_write_message (const irc_server* s, const IrciumMessage* message);
+static int
 irc_write_bytes (const irc_server* s, const char* buf, size_t nbytes);
 static void
 handle_message (irc_connection* conn, const char* message);
@@ -340,13 +342,19 @@ void
 irc_push_message (const irc_server* s, const IrciumMessage* message)
 {
 	GBytes* bytes = ircium_message_serialize (message);
-
 	gsize len = 0;
 	guint8* data = g_bytes_unref_to_data (bytes, &len);
 
-	log_debug ("sending command: %s\n", data);
-
 	irc_push_string (s, (char*)data);
+}
+
+static int
+irc_write_message (const irc_server* s, const IrciumMessage* message)
+{
+	GBytes* bytes = ircium_message_serialize (message);
+	gsize len = 0;
+	guint8* data = g_bytes_unref_to_data (bytes, &len);
+	return irc_write_bytes (s, (char*)data, (size_t)len);
 }
 
 void
@@ -384,6 +392,8 @@ irc_write_bytes (const irc_server* s, const char* buf, size_t nbytes)
 		puts ("emptry connection");
 		return -1;
 	}
+
+	log_debug ("sending command: %s\n", buf);
 
 	if (s->secure) {
 		ret = gnutls_record_send (c->tls_session, buf, nbytes);
@@ -561,7 +571,7 @@ quit_irc_connection (const irc_server* s)
 	const IrciumMessage* pass_cmd =
 	  ircium_message_new (NULL, NULL, "QUIT", pass_params);
 
-	irc_push_message (s, pass_cmd);
+	irc_write_message (s, pass_cmd);
 
 	conn->ev_is_running = false;
 	gnutls_deinit (conn->tls_session);
