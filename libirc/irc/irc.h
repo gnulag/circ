@@ -43,12 +43,10 @@ void
 irc_do_init_event_loop (const irc_server*);
 int
 irc_read_message (const irc_server*, char*);
-int
-irc_read_bytes (const irc_server*, char*, size_t);
-int
-irc_write_message (const irc_server* s, const IrciumMessage* message);
-int
-irc_write_bytes (const irc_server* s, const char* buf, size_t nbytes);
+void
+irc_push_message (const irc_server* s, const IrciumMessage* message);
+void
+irc_push_string (const irc_server* s, const char* str);
 const irc_server*
 irc_get_server_from_name (const char* name);
 const char*
