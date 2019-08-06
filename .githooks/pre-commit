@@ -1,0 +1,30 @@
+#!/bin/sh
+
+function reformat_code () {
+	echo "---> Reformatting source"
+	clang-format -i -style=file $1
+}
+
+function lint_code () {
+	echo "---> Checking for linter warnings"
+	echo ""
+
+	clang-tidy \
+		-checks='' \
+		-header-filter='.*' \
+		$1 \
+		-- \
+		-std=c11
+}
+
+echo "---> Running pre-commit hooks"
+
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -Ee "\.[ch]$")
+
+if [[ $CHANGED_FILES = "" ]]
+then
+	echo "---> [warn] no c source was changed"
+else
+	reformat_code $CHANGED_FILES
+	lint_code $CHANGED_FILES
+fi

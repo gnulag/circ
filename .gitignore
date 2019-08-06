@@ -1,0 +1,17 @@
+*.o
+*.so
+*.dll
+*.exe
+
+# vim swap files
+*.sw?
+*.un~
+
+# mac finder crap
+*.DS_Store
+
+# build output
+build
+
+# vscode cuz flotwig uses a real man's editor
+.vscode
