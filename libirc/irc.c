@@ -321,7 +321,7 @@ irc_write_message (const irc_server* s, const IrciumMessage* message)
 	size_t size = len;
 	int ret = irc_write_bytes (s, (char*)data, size);
 
-	g_object_unref ((gpointer) message);
+	g_object_unref ((gpointer)message);
 
 	return ret;
 }

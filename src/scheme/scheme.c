@@ -134,8 +134,8 @@ scm_run_module_entry (mod_entry* me,
 	me->mod->mod_ctx.serv = s;
 	me->mod->mod_ctx.msg = msg;
 	sexp res = sexp_apply (ctx, me->func, SEXP_NULL);
-	if (sexp_exceptionp(res))
-		sexp_print_exception(ctx, res, sexp_current_error_port (ctx));
+	if (sexp_exceptionp (res))
+		sexp_print_exception (ctx, res, sexp_current_error_port (ctx));
 
 	pthread_mutex_unlock (&me->mod->mtx);
 }

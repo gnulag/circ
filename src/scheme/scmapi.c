@@ -20,8 +20,8 @@ GPtrArray_to_scheme_list (sexp ctx, const GPtrArray* arr, int index)
 		return SEXP_NULL;
 	else
 		return sexp_cons (ctx,
-		                  sexp_c_string (ctx, (char*)arr->pdata[index], -1),
-		                  GPtrArray_to_scheme_list (ctx, arr, index + 1));
+				  sexp_c_string (ctx, (char*)arr->pdata[index], -1),
+				  GPtrArray_to_scheme_list (ctx, arr, index + 1));
 }
 
 sexp
@@ -52,7 +52,7 @@ scmapi_send_raw (sexp ctx, sexp self, sexp n, sexp raw)
 
 	if (!sexp_stringp (raw)) {
 		printf ("scmapi_send_raw: %s: The argument is not a string\n",
-		        mod->path);
+			mod->path);
 		return SEXP_NULL;
 	}
 
