@@ -12,16 +12,21 @@ add_subdirectory(log)
 add_subdirectory(libirc)
 
 set(CIRC_SOURCES
+	src/config/config.h
 	src/config/config.c
 	src/core_hooks.c
+	src/scheme/scheme.h
 	src/scheme/scmapi.c
 	src/scheme/scheme.c
 	src/circ.c
+)
 
+set(CIRC_SOURCES_EXTRA
+	thirdparty/cJSON/cJSON.h
 	thirdparty/cJSON/cJSON.c
 )
 
-add_executable(circ ${CIRC_SOURCES})
+add_executable(circ ${CIRC_SOURCES} ${CIRC_SOURCES_EXTRA})
 
 find_library(LIBEV_LIBS     NAMES ev           REQUIRED)
 find_library(LIBGNUTLS_LIBS NAMES gnutls       REQUIRED)
@@ -65,3 +70,13 @@ target_link_libraries(circ
 	${GLIB_LIBRARIES}
 	${LIBCHIBI_LIBS}
 )
+
+include(ClangFormat)
+
+clangformat_setup(
+	${LOG_SOURCES}
+	${IRC_SOURCES}
+	${CIRC_SOURCES}
+)
+
+add_dependencies(circ clangformat)
