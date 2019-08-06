@@ -45,8 +45,6 @@ scm_run_module_entry (mod_entry* me,
 		      const irc_server* s,
 		      const IrciumMessage* msg);
 static void
-to_scheme (const irc_server* s, const IrciumMessage* msg);
-static void
 scm_load_modules (char* dir);
 static scm_module*
 scm_create_module (char* path);
@@ -132,9 +130,13 @@ scm_run_module_entry (mod_entry* me,
 		      const IrciumMessage* msg)
 {
 	pthread_mutex_lock (&me->mod->mtx);
+	sexp ctx = me->mod->scm_ctx;
 	me->mod->mod_ctx.serv = s;
 	me->mod->mod_ctx.msg = msg;
-	sexp_apply (me->mod->scm_ctx, me->func, SEXP_NULL);
+	sexp res = sexp_apply (ctx, me->func, SEXP_NULL);
+	if (sexp_exceptionp (res))
+		sexp_print_exception (ctx, res, sexp_current_error_port (ctx));
+
 	pthread_mutex_unlock (&me->mod->mtx);
 }
 
@@ -168,6 +170,8 @@ scm_load_modules (char* dir)
 			scm_create_module (fe->fts_path);
 		}
 	log_info ("-----\n");
+
+	fts_close (f);
 }
 
 static scm_module*
