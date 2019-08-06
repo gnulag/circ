@@ -180,7 +180,10 @@ scm_create_module (char* path)
 	scm_module* mod = malloc (sizeof (scm_module));
 	mod->id = ++mod_ids;
 	mod->path = strdup (path);
+	mod->next = NULL;
 	pthread_mutex_init (&mod->mtx, NULL);
+
+	pthread_mutex_lock (&mod->mtx);
 
 	scm_register_module (mod);
 
@@ -189,16 +192,19 @@ scm_create_module (char* path)
 	sexp_load_standard_env (ctx, NULL, SEXP_SEVEN);
 	sexp_load_standard_ports (ctx, NULL, stdin, stdout, stderr, 1);
 
-	sexp id = sexp_make_integer (ctx, mod->id);
+	sexp_gc_var2 (id_obj, obj);
+	sexp_gc_preserve2 (ctx, id_obj, obj);
+
+	id_obj = sexp_make_integer (ctx, mod->id);
 	sexp id_sym = sexp_intern (ctx, "circ-module-id", -1);
-	sexp_env_define (ctx, sexp_context_env (ctx), id_sym, id);
+	sexp_env_define (ctx, sexp_context_env (ctx), id_sym, id_obj);
 
 	scmapi_define_foreign_functions (ctx);
 
-	sexp_gc_var1 (obj);
-	sexp_gc_preserve1 (ctx, obj);
 	obj = sexp_c_string (ctx, path, -1);
 	sexp_load (ctx, obj, NULL);
+
+	pthread_mutex_unlock (&mod->mtx);
 
 	return mod;
 }
@@ -206,6 +212,9 @@ scm_create_module (char* path)
 static void
 scm_register_module (scm_module* mod)
 {
+	if (mod == NULL)
+		return;
+
 	scm_module* modlist = module_list;
 	if (modlist == NULL) {
 		module_list = mod;

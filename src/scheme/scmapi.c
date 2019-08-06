@@ -7,9 +7,9 @@
 static scm_module*
 get_module (sexp ctx)
 {
-	sexp idobj =
-	  sexp_eval_string (ctx, "circ-module-id", -1, sexp_context_env (ctx));
-	int id = sexp_unbox_fixnum (idobj);
+	sexp id_sym = sexp_intern (ctx, "circ-module-id", -1);
+	sexp id_obj = sexp_eval (ctx, id_sym, sexp_context_env (ctx));
+	int id = sexp_unbox_fixnum (id_obj);
 	return scm_get_module_from_id (id);
 }
 
@@ -28,18 +28,24 @@ sexp
 scmapi_register_hook (sexp ctx, sexp self, sexp n, sexp cmd, sexp func)
 {
 	scm_module* mod = get_module (ctx);
+	if (mod == NULL)
+		return SEXP_FALSE;
+
 	const char* cmd_c = sexp_string_data (cmd);
 	scm_add_irc_hook (cmd_c, func, mod);
-	return SEXP_NULL;
+	return SEXP_TRUE;
 }
 
 sexp
 scmapi_register_command (sexp ctx, sexp self, sexp n, sexp cmd, sexp func)
 {
 	scm_module* mod = get_module (ctx);
+	if (mod == NULL)
+		return SEXP_FALSE;
+
 	const char* cmd_c = sexp_string_data (cmd);
 	scm_add_command_hook (cmd_c, func, mod);
-	return SEXP_NULL;
+	return SEXP_TRUE;
 }
 
 sexp
