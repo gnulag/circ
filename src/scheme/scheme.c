@@ -133,6 +133,11 @@ scm_run_module_entry (mod_entry* me,
 	sexp ctx = me->mod->scm_ctx;
 	me->mod->mod_ctx.serv = s;
 	me->mod->mod_ctx.msg = msg;
+
+	sexp id_obj = sexp_make_integer (ctx, me->mod->id);
+	sexp id_sym = sexp_intern (ctx, "circ-module-id", -1);
+	sexp_env_define (ctx, sexp_context_env (ctx), id_sym, id_obj);
+
 	sexp res = sexp_apply (ctx, me->func, SEXP_NULL);
 	if (sexp_exceptionp (res))
 		sexp_print_exception (ctx, res, sexp_current_error_port (ctx));
@@ -192,16 +197,13 @@ scm_create_module (char* path)
 	sexp_load_standard_env (ctx, NULL, SEXP_SEVEN);
 	sexp_load_standard_ports (ctx, NULL, stdin, stdout, stderr, 1);
 
-	sexp_gc_var2 (id_obj, obj);
-	sexp_gc_preserve2 (ctx, id_obj, obj);
-
-	id_obj = sexp_make_integer (ctx, mod->id);
+	sexp id_obj = sexp_make_integer (ctx, mod->id);
 	sexp id_sym = sexp_intern (ctx, "circ-module-id", -1);
 	sexp_env_define (ctx, sexp_context_env (ctx), id_sym, id_obj);
 
 	scmapi_define_foreign_functions (ctx);
 
-	obj = sexp_c_string (ctx, path, -1);
+	sexp obj = sexp_c_string (ctx, path, -1);
 	sexp_load (ctx, obj, NULL);
 
 	pthread_mutex_unlock (&mod->mtx);
