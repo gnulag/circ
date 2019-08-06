@@ -25,8 +25,6 @@ register_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 		exit (EXIT_FAILURE);
 	}
 
-	g_free (g_ptr_array_free (nick_params, TRUE));
-
 	/* Sends USER */
 	GPtrArray* user_params = g_ptr_array_new_full (4, g_free);
 	g_ptr_array_add (user_params, g_strdup (config->server->user->ident));
@@ -50,14 +48,12 @@ sasl_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	g_ptr_array_add (cap_params, g_strdup ("sasl"));
 	const IrciumMessage* cap_cmd = ircium_message_new (NULL, NULL, "CAP", cap_params);
 	irc_write_message (s, cap_cmd);
-	g_free (g_ptr_array_free (cap_params, TRUE));
 
 	GPtrArray* auth_params = g_ptr_array_new_full (1, g_free);
 	g_ptr_array_add (auth_params, g_strdup ("PLAIN"));
 	const IrciumMessage* auth_cmd =
 	  ircium_message_new (NULL, NULL, "AUTHENTICATE", auth_params);
 	irc_write_message (s, auth_cmd);
-	g_free (g_ptr_array_free (auth_params, TRUE));
 }
 
 static void
@@ -87,7 +83,6 @@ sasl_auth_hook (const irc_server* s, const IrciumMessage* msg)
 
 	int ret = irc_write_message (s, pass_cmd);
 
-	g_free (g_ptr_array_free (pass_params, TRUE));
 	g_free (auth_string);
 
 	if (ret == -1) {
@@ -156,8 +151,6 @@ ping_hook (const irc_server* s, const IrciumMessage* msg)
 	const IrciumMessage* pong_cmd =
 	  ircium_message_new (NULL, NULL, "PONG", msg_params_nonconst);
 	irc_write_message (s, pong_cmd);
-
-	g_free (g_ptr_array_free (msg_params_nonconst, TRUE));
 }
 
 static void
@@ -170,7 +163,6 @@ invite_hook (const irc_server* s, const IrciumMessage* msg)
 	const IrciumMessage* join_cmd =
 	  ircium_message_new (NULL, NULL, "JOIN", msg_params);
 	irc_write_message (s, join_cmd);
-	g_ptr_array_free (msg_params, TRUE);
 }
 
 void
