@@ -266,7 +266,7 @@ handle_message (irc_connection* conn, const char* message)
 	exec_hooks (conn->server, "*", parsed_message);
 
 	g_byte_array_unref (gbuf);
-	g_object_unref (parsed_message);
+	g_object_unref ((gpointer)parsed_message);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
