@@ -171,7 +171,7 @@ scm_load_modules (char* dir)
 		}
 	log_info ("-----\n");
 
-	fts_close(f):
+	fts_close (f);
 }
 
 static scm_module*
