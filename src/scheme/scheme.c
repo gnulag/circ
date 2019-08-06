@@ -170,6 +170,8 @@ scm_load_modules (char* dir)
 			scm_create_module (fe->fts_path);
 		}
 	log_info ("-----\n");
+
+	fts_close(f):
 }
 
 static scm_module*
