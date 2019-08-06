@@ -35,7 +35,7 @@ register_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	g_ptr_array_add (user_params, g_strdup (config->server->user->realname));
 	const IrciumMessage* user_cmd =
 	  ircium_message_new (NULL, NULL, "USER", user_params);
-	int ret = irc_write_message (s, user_cmd);
+	ret = irc_write_message (s, user_cmd);
 	g_object_unref ((gpointer)user_cmd);
 	if (ret == -1) {
 		perror ("client: user_cmd");
@@ -63,7 +63,7 @@ sasl_preinit_hook (const irc_server* s, const IrciumMessage* msg)
 	g_ptr_array_add (auth_params, g_strdup ("PLAIN"));
 	const IrciumMessage* auth_cmd =
 	  ircium_message_new (NULL, NULL, "AUTHENTICATE", auth_params);
-	int ret = irc_write_message (s, auth_cmd);
+	ret = irc_write_message (s, auth_cmd);
 	g_object_unref ((gpointer)auth_cmd);
 	if (ret == -1) {
 		perror ("client: auth_cmd");
