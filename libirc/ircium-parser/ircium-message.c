@@ -40,9 +40,9 @@ ircium_message_new_real (void)
 
 IrciumMessage*
 ircium_message_new (GPtrArray* tags,
-                    const gchar* source,
-                    const gchar* cmd,
-                    GPtrArray* params)
+		    const gchar* source,
+		    const gchar* cmd,
+		    GPtrArray* params)
 {
 	IrciumMessage* ret = ircium_message_new_real ();
 	ret->tags = tags != NULL ? g_ptr_array_ref (tags) : NULL;
@@ -363,10 +363,10 @@ ircium_message_serialize (const IrciumMessage* msg)
 
 	gchar* serialized_msg =
 	  g_strdup_printf ("%s%s%s%s\r\n",
-	                   serialized_tags ? serialized_tags : "",
-	                   serialized_source ? serialized_source : "",
-	                   serialized_command,
-	                   serialized_params ? serialized_params : "");
+			   serialized_tags ? serialized_tags : "",
+			   serialized_source ? serialized_source : "",
+			   serialized_command,
+			   serialized_params ? serialized_params : "");
 
 	// We really don't care about the NUL byte anyhow,
 	// because this will be sent across the wire.

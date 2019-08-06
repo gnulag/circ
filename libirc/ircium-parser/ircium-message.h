@@ -36,9 +36,9 @@ ircium_message_parse (const GByteArray* bytes, const gboolean has_tag_cap);
 
 IrciumMessage*
 ircium_message_new (GPtrArray* tags,
-                    const gchar* source,
-                    const gchar* cmd,
-                    GPtrArray* params);
+		    const gchar* source,
+		    const gchar* cmd,
+		    GPtrArray* params);
 
 const GPtrArray*
 ircium_message_get_tags (const IrciumMessage* msg);

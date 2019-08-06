@@ -1,6 +1,6 @@
-#include <ev.h>            // Event loop
+#include <ev.h>		   // Event loop
 #include <gnutls/gnutls.h> // TLS support
-#include <netdb.h>         // getaddrinfo
+#include <netdb.h>	 // getaddrinfo
 #include <sys/socket.h>    // Socket handling
 
 #include <err.h> // err for panics
@@ -254,12 +254,12 @@ handle_message (irc_connection* conn, const char* message)
 	if (msg_len == 0)
 		return;
 
-	GByteArray *gbuf = g_byte_array_new ();
+	GByteArray* gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
 	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 	const char* command = ircium_message_get_command (parsed_message);
 	exec_hooks (conn->server, command, parsed_message);
-	exec_hooks (conn->server, "*",     parsed_message);
+	exec_hooks (conn->server, "*", parsed_message);
 
 	g_byte_array_unref (gbuf);
 }
@@ -432,9 +432,9 @@ encrypt_irc_connection (irc_connection* c)
 	gnutls_credentials_set (
 	  c->tls_session, GNUTLS_CRD_CERTIFICATE, c->tls_creds);
 	gnutls_server_name_set (c->tls_session,
-	                        GNUTLS_NAME_DNS,
-	                        c->server->host,
-	                        strlen (c->server->host));
+				GNUTLS_NAME_DNS,
+				c->server->host,
+				strlen (c->server->host));
 
 	/* Link the socket to GnuTLS */
 	gnutls_transport_set_int (c->tls_session, c->socket);

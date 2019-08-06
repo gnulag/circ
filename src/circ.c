@@ -51,15 +51,14 @@ main (int argc, char** argv)
 	  config->server->secure);
 
 	log_debug ("-----\nNickname %s\nIdent: %s\nRealname: %s\n-----\n",
-	           config->server->user->nickname,
-	           config->server->user->ident,
-	           config->server->user->realname);
+		   config->server->user->nickname,
+		   config->server->user->ident,
+		   config->server->user->realname);
 
 	log_info ("-----\nCommand Prefix: %s\n-----\n", config->cmd_prefix);
 
 	struct irc_channel* elt;
-	LL_FOREACH (config->server->channels, elt)
-	{
+	LL_FOREACH (config->server->channels, elt) {
 		log_debug ("%s\n", elt->channel);
 	}
 

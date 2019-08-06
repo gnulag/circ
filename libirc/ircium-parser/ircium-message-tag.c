@@ -75,9 +75,9 @@ ircium_message_tag_finalize (GObject* object)
 
 static void
 ircium_message_tag_get_property (GObject* object,
-                                 guint prop_id,
-                                 GValue* value,
-                                 GParamSpec* pspec)
+				 guint prop_id,
+				 GValue* value,
+				 GParamSpec* pspec)
 {
 	IrciumMessageTag* self = IRCIUM_MESSAGE_TAG (object);
 
@@ -95,9 +95,9 @@ ircium_message_tag_get_property (GObject* object,
 
 static void
 ircium_message_tag_set_property (GObject* object,
-                                 guint prop_id,
-                                 const GValue* value,
-                                 GParamSpec* pspec)
+				 guint prop_id,
+				 const GValue* value,
+				 GParamSpec* pspec)
 {
 	IrciumMessageTag* self = IRCIUM_MESSAGE_TAG (object);
 
@@ -124,16 +124,16 @@ ircium_message_tag_class_init (IrciumMessageTagClass* klass)
 
 	properties[PROP_NAME] =
 	  g_param_spec_string ("name",
-	                       "name",
-	                       "The name of this tag",
-	                       NULL,
-	                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+			       "name",
+			       "The name of this tag",
+			       NULL,
+			       G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
 	properties[PROP_VALUE] =
 	  g_param_spec_string ("value",
-	                       "value",
-	                       "The value of this tag, if one exists",
-	                       NULL,
-	                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+			       "value",
+			       "The value of this tag, if one exists",
+			       NULL,
+			       G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
 
 	g_object_class_install_properties (object_class, N_PROPS, properties);
 }
