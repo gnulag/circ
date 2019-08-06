@@ -258,14 +258,15 @@ handle_message (irc_connection* conn, const char* message)
 	if (msg_len == 0)
 		return;
 
-	GByteArray *gbuf = g_byte_array_new ();
+	GByteArray* gbuf = g_byte_array_new ();
 	gbuf = g_byte_array_append (gbuf, (guint8*)message, msg_len);
 	const IrciumMessage* parsed_message = ircium_message_parse (gbuf, false);
 	const char* command = ircium_message_get_command (parsed_message);
 	exec_hooks (conn->server, command, parsed_message);
-	exec_hooks (conn->server, "*",     parsed_message);
+	exec_hooks (conn->server, "*", parsed_message);
 
 	g_byte_array_unref (gbuf);
+	g_object_unref (parsed_message);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
