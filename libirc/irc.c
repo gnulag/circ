@@ -39,8 +39,10 @@ typedef struct
 	bool ev_is_running;
 	ev_io watcher;
 	ev_timer timer;
-	pthread_mutex_t queue_mtx;
-	message_queue *queue;
+	message_queue *read_queue;
+	pthread_mutex_t read_queue_mtx;
+	message_queue *write_queue;
+	pthread_mutex_t write_queue_mtx;
 	ev_io ev_init_watcher;
 } irc_connection;
 
@@ -53,7 +55,15 @@ irc_loop_read_callback (EV_P_ ev_io *w, int re);
 static void
 irc_timeout_callback (EV_P_ ev_timer *w, int re);
 static void
-irc_process_message_queue (irc_connection *conn);
+irc_process_read_message_queue (irc_connection *conn);
+static void
+irc_process_write_message_queue (irc_connection *conn);
+static int
+irc_read_bytes (const irc_server *, char *, size_t);
+static int
+irc_write_message (const irc_server *s, const IrciumMessage *message);
+static int
+irc_write_bytes (const irc_server *s, const char *buf, size_t nbytes);
 static void
 handle_message (irc_connection *conn, const char *message);
 int
@@ -187,7 +197,8 @@ irc_do_event_loop (const irc_server *s)
 
 	while (conn->ev_is_running) {
 		ev_run (loop, EVRUN_ONCE);
-		irc_process_message_queue (conn);
+		irc_process_read_message_queue (conn);
+		irc_process_write_message_queue (conn);
 	}
 
 	ev_timer_stop (loop, &conn->timer);
@@ -206,21 +217,21 @@ irc_loop_read_callback (EV_P_ ev_io *w, int re)
 	irc_read_message (conn->server, buf);
 	log_debug ("main loop: %s\n", buf);
 
-	pthread_mutex_lock (&conn->queue_mtx);
-	message_queue *mq = conn->queue;
+	pthread_mutex_lock (&conn->read_queue_mtx);
+	message_queue *mq = conn->read_queue;
 	if (mq == NULL) {
-		conn->queue = malloc (sizeof (message_queue));
-		conn->queue->message = buf;
-		conn->queue->next = NULL;
+		conn->read_queue = malloc (sizeof (message_queue));
+		conn->read_queue->message = buf;
+		conn->read_queue->next = NULL;
 	} else {
 		while (mq->next != NULL)
 			mq = mq->next;
 
-		mq->next = malloc (sizeof (conn->queue));
+		mq->next = malloc (sizeof (conn->read_queue));
 		mq->next->message = buf;
 		mq->next->next = NULL;
 	}
-	pthread_mutex_unlock (&conn->queue_mtx);
+	pthread_mutex_unlock (&conn->read_queue_mtx);
 
 	ev_break (EV_A_ EVBREAK_ALL);
 }
@@ -232,17 +243,36 @@ irc_timeout_callback (EV_P_ ev_timer *w, int re)
 }
 
 static void
-irc_process_message_queue (irc_connection *conn)
+irc_process_read_message_queue (irc_connection *conn)
 {
 	message_queue *next;
-	while (conn->queue != NULL) {
-		handle_message (conn, conn->queue->message);
-		next = conn->queue->next;
-		pthread_mutex_lock (&conn->queue_mtx);
-		free (conn->queue->message);
-		free (conn->queue);
-		conn->queue = next;
-		pthread_mutex_unlock (&conn->queue_mtx);
+	while (conn->read_queue != NULL) {
+		handle_message (conn, conn->read_queue->message);
+		next = conn->read_queue->next;
+
+		pthread_mutex_lock (&conn->read_queue_mtx);
+		free (conn->read_queue->message);
+		free (conn->read_queue);
+		conn->read_queue = next;
+		pthread_mutex_unlock (&conn->read_queue_mtx);
+	}
+}
+
+static void
+irc_process_write_message_queue (irc_connection *conn)
+{
+	message_queue *next;
+	char *str;
+	while (conn->write_queue != NULL) {
+		str = conn->write_queue->message;
+		next = conn->write_queue->next;
+		irc_write_bytes (conn->server, str, strlen (str));
+
+		pthread_mutex_lock (&conn->write_queue_mtx);
+		free (conn->write_queue->message);
+		free (conn->write_queue);
+		conn->write_queue = next;
+		pthread_mutex_unlock (&conn->write_queue_mtx);
 	}
 }
 
@@ -288,7 +318,7 @@ irc_read_message (const irc_server *s, char buf[IRC_MESSAGE_SIZE])
 }
 
 /* Read nbytes from the irc_server's connection */
-int
+static int
 irc_read_bytes (const irc_server *s, char *buf, size_t nbytes)
 {
 	if (buf == NULL)
@@ -308,24 +338,50 @@ irc_read_bytes (const irc_server *s, char *buf, size_t nbytes)
 }
 
 /* Serialize an IrciumMessage and send it to the server */
-int
-irc_write_message (const irc_server *s, const IrciumMessage *message)
+void
+irc_push_message (const irc_server *s, const IrciumMessage *message)
 {
 	GBytes *bytes = ircium_message_serialize (message);
 
 	gsize len = 0;
 	guint8 *data = g_bytes_unref_to_data (bytes, &len);
 
-	log_debug ("sending command: %s\n", data);
+	irc_push_string (s, (char *)data);
+}
 
-	size_t size = len;
-	int ret = irc_write_bytes (s, (char *)data, size);
+static int
+irc_write_message (const irc_server *s, const IrciumMessage *message)
+{
+	GBytes *bytes = ircium_message_serialize (message);
+	gsize len = 0;
+	guint8 *data = g_bytes_unref_to_data (bytes, &len);
+	return irc_write_bytes (s, (char *)data, (size_t)len);
+}
 
-	return ret;
+void
+irc_push_string (const irc_server *s, const char *str)
+{
+	irc_connection *c = get_irc_server_connection (s);
+
+	pthread_mutex_lock (&c->write_queue_mtx);
+	message_queue *mq;
+	if (c->write_queue == NULL) {
+		c->write_queue = malloc (sizeof (message_queue));
+		c->write_queue->message = strdup (str);
+		c->write_queue->next = NULL;
+	} else {
+		for (mq = c->write_queue; mq->next != NULL; mq = mq->next)
+			;
+
+		mq->next = malloc (sizeof (message_queue));
+		mq->next->message = strdup (str);
+		mq->next->next = NULL;
+	}
+	pthread_mutex_unlock (&c->write_queue_mtx);
 }
 
 /* Write nbytes to the irc_server's connection */
-int
+static int
 irc_write_bytes (const irc_server *s, const char *buf, size_t nbytes)
 {
 	if (buf == NULL)
@@ -337,6 +393,8 @@ irc_write_bytes (const irc_server *s, const char *buf, size_t nbytes)
 		puts ("emptry connection");
 		return -1;
 	}
+
+	log_debug ("sending command: %s\n", buf);
 
 	if (s->secure) {
 		ret = gnutls_record_send (c->tls_session, buf, nbytes);
@@ -452,8 +510,10 @@ create_irc_connection (const irc_server *s, int sock)
 
 	c->server = s;
 	c->socket = sock;
-	c->queue = NULL;
-	pthread_mutex_init (&c->queue_mtx, NULL);
+	c->read_queue = NULL;
+	pthread_mutex_init (&c->read_queue_mtx, NULL);
+	c->write_queue = NULL;
+	pthread_mutex_init (&c->write_queue_mtx, NULL);
 
 	return c;
 }
@@ -512,11 +572,7 @@ quit_irc_connection (const irc_server *s)
 	const IrciumMessage *pass_cmd =
 	  ircium_message_new (NULL, NULL, "QUIT", pass_params);
 
-	int ret = irc_write_message (s, pass_cmd);
-
-	if (ret == -1) {
-		err (1, "Error during SASL Auth");
-	}
+	irc_write_message (s, pass_cmd);
 
 	conn->ev_is_running = false;
 	gnutls_deinit (conn->tls_session);

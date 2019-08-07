@@ -64,7 +64,7 @@ scmapi_send_raw (sexp ctx, sexp self, sexp n, sexp raw)
 
 	const irc_server *s = mod->mod_ctx.serv;
 	const char *raw_c = sexp_string_data (raw);
-	irc_write_bytes (s, raw_c, strlen (raw_c));
+	irc_push_string (s, raw_c);
 
 	return SEXP_NULL;
 }
@@ -91,7 +91,7 @@ scmapi_reply (sexp ctx, sexp self, sexp n, sexp text)
 
 	char buf[4096];
 	snprintf (buf, 4096, "PRIVMSG %s :%s\r\n", params->pdata[0], text_c);
-	irc_write_bytes (s, buf, strlen (buf));
+	irc_push_string (s, buf);
 
 	return SEXP_NULL;
 }
