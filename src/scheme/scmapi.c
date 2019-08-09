@@ -49,6 +49,18 @@ scmapi_register_command (sexp ctx, sexp self, sexp n, sexp cmd, sexp func)
 }
 
 sexp
+scmapi_register_match (sexp ctx, sexp self, sexp n, sexp regex, sexp func)
+{
+	scm_module *mod = get_module (ctx);
+	if (mod == NULL)
+		return SEXP_FALSE;
+
+	const char *regex_c = sexp_string_data (regex);
+	scm_add_regex_hook (regex_c, func, mod);
+	return SEXP_TRUE;
+}
+
+sexp
 scmapi_send_raw (sexp ctx, sexp self, sexp n, sexp raw)
 {
 
@@ -165,8 +177,8 @@ scmapi_define_foreign_functions (sexp ctx)
 
 	/* Entry registrations */
 	sexp_define_foreign (ctx, env, "register-hook", 2, scmapi_register_hook);
-	sexp_define_foreign (
-	  ctx, env, "register-command", 2, scmapi_register_command);
+	sexp_define_foreign (ctx, env, "register-command", 2, scmapi_register_command);
+	sexp_define_foreign (ctx, env, "register-match", 2, scmapi_register_match);
 
 	/* Server interactions */
 	sexp_define_foreign (ctx, env, "reply", 1, scmapi_reply);
