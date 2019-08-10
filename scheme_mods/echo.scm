@@ -1,3 +1,4 @@
+(load "scheme_libs/privmsg.scm")
 (import (chibi string))
 
 (define (echo)

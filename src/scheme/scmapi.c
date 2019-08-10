@@ -63,7 +63,6 @@ scmapi_register_match (sexp ctx, sexp self, sexp n, sexp regex, sexp func)
 sexp
 scmapi_send_raw (sexp ctx, sexp self, sexp n, sexp raw)
 {
-
 	scm_module *mod = get_module (ctx);
 	if (mod == NULL)
 		return SEXP_NULL;
@@ -77,33 +76,6 @@ scmapi_send_raw (sexp ctx, sexp self, sexp n, sexp raw)
 	const irc_server *s = mod->mod_ctx.serv;
 	const char *raw_c = sexp_string_data (raw);
 	irc_push_string (s, raw_c);
-
-	return SEXP_NULL;
-}
-
-sexp
-scmapi_reply (sexp ctx, sexp self, sexp n, sexp text)
-{
-	scm_module *mod = get_module (ctx);
-	if (mod == NULL)
-		return SEXP_NULL;
-
-	if (!sexp_stringp (text)) {
-		printf ("scmapi_reply: %s: The argument is not a string\n", mod->path);
-		return SEXP_NULL;
-	}
-
-	const irc_server *s = mod->mod_ctx.serv;
-	const char *text_c = sexp_string_data (text);
-	const char *command = ircium_message_get_command (mod->mod_ctx.msg);
-	const GPtrArray *params = ircium_message_get_params (mod->mod_ctx.msg);
-
-	if (strcmp (command, "PRIVMSG") != 0)
-		return SEXP_NULL;
-
-	char buf[4096];
-	snprintf (buf, 4096, "PRIVMSG %s :%s\r\n", params->pdata[0], text_c);
-	irc_push_string (s, buf);
 
 	return SEXP_NULL;
 }
@@ -181,7 +153,6 @@ scmapi_define_foreign_functions (sexp ctx)
 	sexp_define_foreign (ctx, env, "register-match", 2, scmapi_register_match);
 
 	/* Server interactions */
-	sexp_define_foreign (ctx, env, "reply", 1, scmapi_reply);
 	sexp_define_foreign (ctx, env, "send-raw", 1, scmapi_send_raw);
 
 	/* IRC config information */
@@ -192,12 +163,8 @@ scmapi_define_foreign_functions (sexp ctx)
 	  ctx, env, "get-server-name", 0, scmapi_get_server_name);
 
 	/* message information */
-	sexp_define_foreign (
-	  ctx, env, "get-message-source", 0, scmapi_get_message_source);
-	sexp_define_foreign (
-	  ctx, env, "get-message-command", 0, scmapi_get_message_command);
-	sexp_define_foreign (
-	  ctx, env, "get-message-params", 0, scmapi_get_message_params);
-	sexp_define_foreign (
-	  ctx, env, "get-message-tags", 0, scmapi_get_message_tags);
+	sexp_define_foreign (ctx, env, "get-message-source", 0, scmapi_get_message_source);
+	sexp_define_foreign (ctx, env, "get-message-command", 0, scmapi_get_message_command);
+	sexp_define_foreign (ctx, env, "get-message-params", 0, scmapi_get_message_params);
+	sexp_define_foreign (ctx, env, "get-message-tags", 0, scmapi_get_message_tags);
 }

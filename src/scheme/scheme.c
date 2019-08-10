@@ -178,8 +178,6 @@ scm_exec_regex_hooks (const irc_server *s, const IrciumMessage *msg)
 	for (hooks = regex_hooks; hooks != NULL; hooks = hooks->next)
 		if (regexec (hooks->regex, text, 0, NULL, 0) == 0)
 			scm_run_module (hooks->mod, hooks->func, s, msg);
-		else
-			puts ("no match");
 }
 
 static void
@@ -263,7 +261,9 @@ scm_create_module (char *path)
 	scmapi_define_foreign_functions (ctx);
 
 	sexp obj = sexp_c_string (ctx, path, -1);
-	sexp_load (ctx, obj, NULL);
+	sexp res = sexp_load (ctx, obj, NULL);
+	if (sexp_exceptionp (res))
+		sexp_print_exception (ctx, res, sexp_current_error_port (ctx));
 
 	pthread_mutex_unlock (&mod->mtx);
 

@@ -63,7 +63,7 @@ main (int argc, char **argv)
 	}
 
 	init_hooks ();
-	setenv ("CHIBI_MODULE_PATH", "chibi-scheme/lib", 1);
+	setenv ("CHIBI_MODULE_PATH", "chibi-scheme/lib:scheme_libs", 1);
 	scm_init ();
 	register_core_hooks ();
 

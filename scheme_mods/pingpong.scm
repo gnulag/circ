@@ -1,3 +1,5 @@
+(load "scheme_libs/privmsg.scm")
+
 (define (pong)
   (reply (string-append (get-cmd-prefix) "pong")))
 
