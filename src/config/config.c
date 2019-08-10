@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct config_t *config;
+static struct config_t *config;
 
 struct config_t *
 get_config ()
@@ -221,6 +221,8 @@ parse_config (const char *config_file_path)
 	int iter = 0;
 	cJSON *module = NULL;
 	cJSON *modules = cJSON_GetObjectItemCaseSensitive (json, "modules");
+	int modules_size = cJSON_GetArraySize (modules);
+	config->modules = malloc (modules_size * sizeof (char *));
 	cJSON_ArrayForEach (module, modules)
 	{
 		if (cJSON_IsObject (module)) {
@@ -236,6 +238,8 @@ parse_config (const char *config_file_path)
 			cJSON *matcher = NULL;
 			cJSON *matchers =
 			  cJSON_GetObjectItemCaseSensitive (module, "matchers");
+			int matchers_size = cJSON_GetArraySize (matchers);
+			tmp_module->matchers = malloc (modules_size * sizeof (module_t *));
 			cJSON_ArrayForEach (matcher, matchers)
 			{
 				if (cJSON_IsString (matcher) && matcher->valuestring != NULL) {

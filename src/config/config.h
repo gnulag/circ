@@ -11,7 +11,7 @@ typedef struct module_t
 	char *cmd;
 	char *cwd;
 	char *config;
-	char *matchers[];
+	char **matchers;
 } module_t;
 
 typedef struct config_t
@@ -21,7 +21,7 @@ typedef struct config_t
 	char *db_path;
 	char *scheme_mod_dir;
 	struct irc_server *server;
-	struct module_t *modules[];
+	struct module_t **modules;
 } config_t;
 
 // configstruct* config;
