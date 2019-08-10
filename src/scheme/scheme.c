@@ -1,6 +1,7 @@
 #include <fts.h>
 #include <glib.h>
 #include <pthread.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,6 +18,14 @@ typedef struct mod_entry
 	sexp func;
 	struct mod_entry *next;
 } mod_entry;
+
+typedef struct regex_hook
+{
+	scm_module *mod;
+	sexp func;
+	regex_t *regex;
+	struct regex_hook *next;
+} regex_hook;
 
 static unsigned int mod_ids = 0;
 static scm_module *module_list;
@@ -35,15 +44,24 @@ static GHashTable *command_hooks;
  * IRC command -> mod_entry*
  */
 static GHashTable *irc_hooks;
+/*
+ * A linked list of regex hooks
+ * All of the element of this list are tried
+ * against every PRIVMSG that comes in
+ */
+static regex_hook *regex_hooks;
 
 static void
 scm_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg);
 static void
 scm_exec_command_hooks (const irc_server *s, const IrciumMessage *msg);
 static void
-scm_run_module_entry (mod_entry *me,
-		      const irc_server *s,
-		      const IrciumMessage *msg);
+scm_exec_regex_hooks (const irc_server *s, const IrciumMessage *msg);
+static void
+scm_run_module (scm_module *mod,
+		sexp func,
+		const irc_server *s,
+		const IrciumMessage *msg);
 static void
 scm_load_modules (char *dir);
 static scm_module *
@@ -55,7 +73,10 @@ static void
 scm_entry (const irc_server *s, const IrciumMessage *msg)
 {
 	scm_exec_irc_hooks (s, msg);
-	scm_exec_command_hooks (s, msg);
+	if (strcmp (ircium_message_get_command (msg), "PRIVMSG") == 0) {
+		scm_exec_command_hooks (s, msg);
+		scm_exec_regex_hooks (s, msg);
+	}
 }
 
 void
@@ -77,7 +98,7 @@ scm_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
 		return;
 
 	do {
-		scm_run_module_entry (me, s, msg);
+		scm_run_module (me->mod, me->func, s, msg);
 	} while ((me = me->next));
 }
 
@@ -95,10 +116,6 @@ static void
 scm_exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 {
 	config_t *config = get_config ();
-
-	const char *irc_cmd = ircium_message_get_command (msg);
-	if (strcmp (irc_cmd, "PRIVMSG") != 0)
-		return;
 
 	const GPtrArray *params = ircium_message_get_params (msg);
 	const char *text = params->pdata[1];
@@ -120,29 +137,71 @@ scm_exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
 		return;
 
 	do {
-		scm_run_module_entry (me, s, msg);
+		scm_run_module (me->mod, me->func, s, msg);
 	} while ((me = me->next));
 }
 
-static void
-scm_run_module_entry (mod_entry *me,
-		      const irc_server *s,
-		      const IrciumMessage *msg)
+void
+scm_add_regex_hook (const char *rx_str, sexp func, scm_module *mod)
 {
-	pthread_mutex_lock (&me->mod->mtx);
-	sexp ctx = me->mod->scm_ctx;
-	me->mod->mod_ctx.serv = s;
-	me->mod->mod_ctx.msg = msg;
+	regex_t *rx = malloc (sizeof (regex_t));
+	char errbuf[4096];
+	int ret = regcomp (rx, rx_str, REG_NOSUB | REG_EXTENDED);
+	if (ret) {
+		regerror (ret, rx, errbuf, sizeof (errbuf));
+		log_info (errbuf);
+		return;
+	}
 
-	sexp id_obj = sexp_make_integer (ctx, me->mod->id);
+	regex_hook *rx_hook = malloc (sizeof (regex_hook));
+	rx_hook->mod = mod;
+	rx_hook->func = func;
+	rx_hook->regex = rx;
+	rx_hook->next = NULL;
+
+	regex_hook *hooks;
+	if (regex_hooks == NULL)
+		regex_hooks = rx_hook;
+	else {
+		for (hooks = regex_hooks; hooks->next != NULL; hooks = hooks->next)
+			;
+		hooks->next = rx_hook;
+	}
+}
+
+static void
+scm_exec_regex_hooks (const irc_server *s, const IrciumMessage *msg)
+{
+	regex_hook *hooks;
+	const GPtrArray *params = ircium_message_get_params (msg);
+	char *text = params->pdata[1];
+	for (hooks = regex_hooks; hooks != NULL; hooks = hooks->next)
+		if (regexec (hooks->regex, text, 0, NULL, 0) == 0)
+			scm_run_module (hooks->mod, hooks->func, s, msg);
+		else
+			puts ("no match");
+}
+
+static void
+scm_run_module (scm_module *mod,
+		sexp func,
+		const irc_server *s,
+		const IrciumMessage *msg)
+{
+	pthread_mutex_lock (&mod->mtx);
+	sexp ctx = mod->scm_ctx;
+	mod->mod_ctx.serv = s;
+	mod->mod_ctx.msg = msg;
+
+	sexp id_obj = sexp_make_integer (ctx, mod->id);
 	sexp id_sym = sexp_intern (ctx, "circ-module-id", -1);
 	sexp_env_define (ctx, sexp_context_env (ctx), id_sym, id_obj);
 
-	sexp res = sexp_apply (ctx, me->func, SEXP_NULL);
+	sexp res = sexp_apply (ctx, func, SEXP_NULL);
 	if (sexp_exceptionp (res))
 		sexp_print_exception (ctx, res, sexp_current_error_port (ctx));
 
-	pthread_mutex_unlock (&me->mod->mtx);
+	pthread_mutex_unlock (&mod->mtx);
 }
 
 void

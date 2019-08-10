@@ -29,6 +29,8 @@ scm_add_irc_hook (const char *command, sexp func, scm_module *mod);
 void
 scm_add_command_hook (const char *command, sexp func, scm_module *mod);
 void
+scm_add_regex_hook (const char *rx_str, sexp func, scm_module *mod);
+void
 scmapi_define_foreign_functions (sexp ctx);
 
 #endif
