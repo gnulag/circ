@@ -1,3 +1,4 @@
+(load "scheme_libs/privmsg.scm")
 (import (chibi string))
 
 (define (intensify)
@@ -7,6 +8,6 @@
 		  (string-trim-right text #\])
 		  #\[)))
      (reply (string-map char-upcase
-	      (string-append "" inner-text " intensifies" "")))))
+	      (string-append "\x02" inner-text " intensifies" "\x02")))))
 
 (register-match "^\\[.+\\]$" intensify)
