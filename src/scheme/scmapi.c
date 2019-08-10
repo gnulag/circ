@@ -88,6 +88,13 @@ scmapi_get_cmd_prefix (sexp ctx, sexp self, sexp n)
 }
 
 sexp
+scmapi_get_db_path (sexp ctx, sexp self, sexp n)
+{
+	config_t *config = get_config ();
+	return sexp_c_string (ctx, config->db_path, -1);
+}
+
+sexp
 scmapi_get_server_name (sexp ctx, sexp self, sexp n)
 {
 	scm_module *mod = get_module (ctx);
@@ -157,6 +164,7 @@ scmapi_define_foreign_functions (sexp ctx)
 
 	/* IRC config information */
 	sexp_define_foreign (ctx, env, "get-cmd-prefix", 0, scmapi_get_cmd_prefix);
+	sexp_define_foreign (ctx, env, "get-db-path", 0, scmapi_get_db_path);
 
 	/* Server information */
 	sexp_define_foreign (

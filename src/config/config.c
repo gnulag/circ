@@ -95,6 +95,13 @@ parse_config (const char *config_file_path)
 		config->cmd_prefix = strdup ("%");
 	}
 
+	cJSON *db_path = cJSON_GetObjectItemCaseSensitive (json, "db_path");
+	if (cJSON_IsString (db_path) && db_path->valuestring != NULL) {
+		config->db_path = strdup (db_path->valuestring);
+	} else {
+		config->db_path = strdup ("db.sqlite3");
+	}
+
 	cJSON *scheme_mod_dir =
 	  cJSON_GetObjectItemCaseSensitive (json, "scheme_mod_dir");
 	if (cJSON_IsString (scheme_mod_dir) &&

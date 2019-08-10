@@ -18,6 +18,7 @@ typedef struct config_t
 {
 	bool debug;
 	char *cmd_prefix;
+	char *db_path;
 	char *scheme_mod_dir;
 	struct irc_server *server;
 	struct module_t *modules[];

@@ -1,31 +1,32 @@
 {
-    "debug": true,
-    "cmd_prefix": "%",
-    "scheme_mod_dir": "./scheme_mods/",
-    "server": {
-        "name": "Snoonet",
-        "host": "irc.snoonet.org",
-        "port": "6697",
-        "secure": true,
-        "channels": [
-            "#gnulag"
-        ],
-        "user": {
-            "nickname": "circ",
-            "ident": "circ",
-            "realname": "circy",
-            "sasl_enabled": false,
-            "sasl_user": "circ",
-            "sasl_pass": "circ"
-        }
-    },
-    "modules": [
-        {
-            "name": "wolfram",
-            "matchers": ["^wa"],
-            "cmd": "wolfram",
-            "cwd": "~/.circ/plugins"
-        }
-    ]
+	"debug": true,
+	"cmd_prefix": "%",
+	"db_path": "db.sqlite",
+	"scheme_mod_dir": "./scheme_mods/",
+	"server": {
+		"name": "Snoonet",
+		"host": "irc.snoonet.org",
+		"port": "6697",
+		"secure": true,
+		"channels": [
+			"#gnulag"
+		],
+		"user": {
+			"nickname": "circ",
+			"ident": "circ",
+			"realname": "circy",
+			"sasl_enabled": false,
+			"sasl_user": "circ",
+			"sasl_pass": "circ"
+		}
+	},
+	"modules": [
+		{
+			"name": "wolfram",
+			"matchers": ["^wa"],
+			"cmd": "wolfram",
+			"cwd": "~/.circ/plugins"
+		}
+	]
 }
 
