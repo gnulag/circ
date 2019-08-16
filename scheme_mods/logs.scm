@@ -2,7 +2,7 @@
 (import (chibi sqlite3))
 
 (define db (sqlite3-open (get-db-path)))
-(sqlite3-do db "CREATE TABLE IF NOT EXISTS irc_logs (server TEXT, channel TEXT, nick TEXT, message TEXT, action INTEGER)")
+(sqlite3-do db "CREATE TABLE IF NOT EXISTS irc_logs (time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, server TEXT, channel TEXT, nick TEXT, message TEXT, action INTEGER)")
 
 (define (insert-log)
   (let*
