@@ -28,9 +28,10 @@ set(CIRC_SOURCES_EXTRA
 
 add_executable(circ ${CIRC_SOURCES} ${CIRC_SOURCES_EXTRA})
 
-find_library(LIBEV_LIBS     NAMES ev           REQUIRED)
-find_library(LIBGNUTLS_LIBS NAMES gnutls       REQUIRED)
-find_package(GLIB           COMPONENTS gobject REQUIRED)
+find_library(LIBEV_LIBS      NAMES ev           REQUIRED)
+find_library(LIBGNUTLS_LIBS  NAMES gnutls       REQUIRED)
+find_library(LIBSQLITE3_LIBS NAMES sqlite3      REQUIRED)
+find_package(GLIB            COMPONENTS gobject REQUIRED)
 
 # get and build chibi
 if(NOT IS_DIRECTORY ${CMAKE_BINARY_DIR}/chibi-scheme)
@@ -66,6 +67,7 @@ target_link_libraries(circ
 	log
 	${LIBEV_LIBS}
 	${LIBGNUTLS_LIBS}
+	${LIBSQLITE3_LIBS}
 	${GLIB_GOBJECT_LIBRARIES}
 	${GLIB_LIBRARIES}
 	${LIBCHIBI_LIBS}
