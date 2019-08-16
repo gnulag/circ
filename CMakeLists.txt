@@ -55,6 +55,8 @@ find_library(LIBCHIBI_LIBS
 	REQUIRED
 )
 
+include(build_stubs)
+
 target_include_directories(circ
 	PRIVATE src
 	PRIVATE thirdparty
@@ -81,4 +83,4 @@ clangformat_setup(
 	${CIRC_SOURCES}
 )
 
-add_dependencies(circ clangformat)
+add_dependencies(circ clangformat build_stubs)
