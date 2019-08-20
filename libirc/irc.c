@@ -40,10 +40,9 @@ typedef struct
 	ev_io watcher;
 	ev_timer timer;
 	message_queue *read_queue;
-	pthread_mutex_t read_queue_mtx;
+	ev_async rq_sig;
 	message_queue *write_queue;
-	pthread_mutex_t write_queue_mtx;
-	ev_io ev_init_watcher;
+	ev_async wq_sig;
 } irc_connection;
 
 int
@@ -55,9 +54,9 @@ irc_loop_read_callback (EV_P_ ev_io *w, int re);
 static void
 irc_timeout_callback (EV_P_ ev_timer *w, int re);
 static void
-irc_process_read_message_queue (irc_connection *conn);
+irc_read_queue_callback (EV_P_ ev_async *w, int re);
 static void
-irc_process_write_message_queue (irc_connection *conn);
+irc_write_queue_callback (EV_P_ ev_async *w, int re);
 static int
 irc_read_bytes (const irc_server *, char *, size_t);
 static int
@@ -80,6 +79,8 @@ irc_connection *
 get_irc_server_connection (const irc_server *);
 irc_connection *
 get_irc_connection_from_watcher (const ev_io *w);
+irc_connection *
+get_irc_connection_from_signal (const ev_async *w);
 bool
 server_connected (const irc_server *s);
 bool
@@ -195,14 +196,15 @@ irc_do_event_loop (const irc_server *s)
 	ev_timer_init (&conn->timer, irc_timeout_callback, 6, 0);
 	ev_timer_start (loop, &conn->timer);
 
-	while (conn->ev_is_running) {
-		ev_run (loop, EVRUN_ONCE);
-		irc_process_read_message_queue (conn);
-		irc_process_write_message_queue (conn);
-	}
+	ev_async_init (&conn->rq_sig, irc_read_queue_callback);
+	ev_async_start (loop, &conn->rq_sig);
+	ev_async_init (&conn->wq_sig, irc_write_queue_callback);
+	ev_async_start (loop, &conn->wq_sig);
+
+	while (conn->ev_is_running)
+		ev_run (loop, 0);
 
 	ev_timer_stop (loop, &conn->timer);
-	ev_io_stop (loop, &conn->ev_init_watcher);
 	ev_io_stop (loop, &conn->watcher);
 	ev_loop_destroy (loop);
 }
@@ -217,7 +219,6 @@ irc_loop_read_callback (EV_P_ ev_io *w, int re)
 	irc_read_message (conn->server, buf);
 	log_debug ("main loop: %s\n", buf);
 
-	pthread_mutex_lock (&conn->read_queue_mtx);
 	message_queue *mq = conn->read_queue;
 	if (mq == NULL) {
 		conn->read_queue = malloc (sizeof (message_queue));
@@ -231,9 +232,8 @@ irc_loop_read_callback (EV_P_ ev_io *w, int re)
 		mq->next->message = buf;
 		mq->next->next = NULL;
 	}
-	pthread_mutex_unlock (&conn->read_queue_mtx);
 
-	ev_break (EV_A_ EVBREAK_ALL);
+	ev_async_send (EV_DEFAULT_ & conn->rq_sig);
 }
 
 static void
@@ -243,36 +243,32 @@ irc_timeout_callback (EV_P_ ev_timer *w, int re)
 }
 
 static void
-irc_process_read_message_queue (irc_connection *conn)
+irc_read_queue_callback (EV_P_ ev_async *w, int re)
 {
+	irc_connection *conn = get_irc_connection_from_signal (w);
 	message_queue *next;
 	while (conn->read_queue != NULL) {
 		handle_message (conn, conn->read_queue->message);
 		next = conn->read_queue->next;
-
-		pthread_mutex_lock (&conn->read_queue_mtx);
 		free (conn->read_queue->message);
 		free (conn->read_queue);
 		conn->read_queue = next;
-		pthread_mutex_unlock (&conn->read_queue_mtx);
 	}
 }
 
 static void
-irc_process_write_message_queue (irc_connection *conn)
+irc_write_queue_callback (EV_P_ ev_async *w, int re)
 {
+	irc_connection *conn = get_irc_connection_from_signal (w);
 	message_queue *next;
 	char *str;
 	while (conn->write_queue != NULL) {
 		str = conn->write_queue->message;
 		next = conn->write_queue->next;
 		irc_write_bytes (conn->server, str, strlen (str));
-
-		pthread_mutex_lock (&conn->write_queue_mtx);
 		free (conn->write_queue->message);
 		free (conn->write_queue);
 		conn->write_queue = next;
-		pthread_mutex_unlock (&conn->write_queue_mtx);
 	}
 }
 
@@ -363,7 +359,6 @@ irc_push_string (const irc_server *s, const char *str)
 {
 	irc_connection *c = get_irc_server_connection (s);
 
-	pthread_mutex_lock (&c->write_queue_mtx);
 	message_queue *mq;
 	if (c->write_queue == NULL) {
 		c->write_queue = malloc (sizeof (message_queue));
@@ -377,7 +372,8 @@ irc_push_string (const irc_server *s, const char *str)
 		mq->next->message = strdup (str);
 		mq->next->next = NULL;
 	}
-	pthread_mutex_unlock (&c->write_queue_mtx);
+
+	ev_async_send (EV_DEFAULT_ & c->wq_sig);
 }
 
 /* Write nbytes to the irc_server's connection */
@@ -390,7 +386,7 @@ irc_write_bytes (const irc_server *s, const char *buf, size_t nbytes)
 	int ret;
 	irc_connection *c = get_irc_server_connection (s);
 	if (c == NULL) {
-		puts ("emptry connection");
+		puts ("empty connection");
 		return -1;
 	}
 
@@ -511,9 +507,7 @@ create_irc_connection (const irc_server *s, int sock)
 	c->server = s;
 	c->socket = sock;
 	c->read_queue = NULL;
-	pthread_mutex_init (&c->read_queue_mtx, NULL);
 	c->write_queue = NULL;
-	pthread_mutex_init (&c->write_queue_mtx, NULL);
 
 	return c;
 }
@@ -556,6 +550,18 @@ get_irc_connection_from_watcher (const ev_io *w)
 	int i;
 	for (i = 0; conns[i] != NULL; i++) {
 		if (w == &conns[i]->watcher)
+			return conns[i];
+	}
+
+	return NULL;
+}
+
+irc_connection *
+get_irc_connection_from_signal (const ev_async *w)
+{
+	int i;
+	for (i = 0; conns[i] != NULL; i++) {
+		if (w == &conns[i]->rq_sig || w == &conns[i]->wq_sig)
 			return conns[i];
 	}
 
