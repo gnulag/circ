@@ -52,16 +52,16 @@ static GHashTable *irc_hooks;
 static regex_hook *regex_hooks;
 
 static void
-scm_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg);
+scm_exec_irc_hooks (const irc_server *s, const irc_msg *msg);
 static void
-scm_exec_command_hooks (const irc_server *s, const IrciumMessage *msg);
+scm_exec_command_hooks (const irc_server *s, const irc_msg *msg);
 static void
-scm_exec_regex_hooks (const irc_server *s, const IrciumMessage *msg);
+scm_exec_regex_hooks (const irc_server *s, const irc_msg *msg);
 static void
 scm_run_module (scm_module *mod,
 		sexp func,
 		const irc_server *s,
-		const IrciumMessage *msg);
+		const irc_msg *msg);
 static void
 scm_load_modules (char *dir);
 static scm_module *
@@ -70,10 +70,10 @@ static void
 scm_register_module (scm_module *mod);
 
 static void
-scm_entry (const irc_server *s, const IrciumMessage *msg)
+scm_entry (const irc_server *s, const irc_msg *msg)
 {
 	scm_exec_irc_hooks (s, msg);
-	if (strcmp (ircium_message_get_command (msg), "PRIVMSG") == 0) {
+	if (strcmp (msg->command, "PRIVMSG") == 0) {
 		scm_exec_command_hooks (s, msg);
 		scm_exec_regex_hooks (s, msg);
 	}
@@ -90,10 +90,9 @@ scm_add_irc_hook (const char *command, sexp func, scm_module *mod)
 }
 
 static void
-scm_exec_irc_hooks (const irc_server *s, const IrciumMessage *msg)
+scm_exec_irc_hooks (const irc_server *s, const irc_msg *msg)
 {
-	const char *irc_cmd = ircium_message_get_command (msg);
-	mod_entry *me = g_hash_table_lookup (irc_hooks, irc_cmd);
+	mod_entry *me = g_hash_table_lookup (irc_hooks, msg->command);
 	if (me == NULL)
 		return;
 
@@ -113,12 +112,14 @@ scm_add_command_hook (const char *command, sexp func, scm_module *mod)
 }
 
 static void
-scm_exec_command_hooks (const irc_server *s, const IrciumMessage *msg)
+scm_exec_command_hooks (const irc_server *s, const irc_msg *msg)
 {
 	config_t *config = get_config ();
 
-	const GPtrArray *params = ircium_message_get_params (msg);
-	const char *text = params->pdata[1];
+	if (strcmp (msg->command, "PRIVMSG") != 0)
+		return;
+
+	const char *text = msg->params->params[1];
 	size_t text_len = strlen (text);
 	size_t cmd_prefix_len = strlen (config->cmd_prefix);
 
@@ -184,7 +185,7 @@ static void
 scm_run_module (scm_module *mod,
 		sexp func,
 		const irc_server *s,
-		const IrciumMessage *msg)
+		const irc_msg *msg)
 {
 	pthread_mutex_lock (&mod->mtx);
 	sexp ctx = mod->scm_ctx;

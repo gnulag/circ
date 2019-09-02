@@ -1,7 +1,6 @@
 #include <string.h>
 
 #include "../config/config.h"
-#include "irc/irc.h"
 #include "scheme.h"
 
 static scm_module *
@@ -11,17 +10,6 @@ get_module (sexp ctx)
 	sexp id_obj = sexp_eval (ctx, id_sym, sexp_context_env (ctx));
 	int id = sexp_unbox_fixnum (id_obj);
 	return scm_get_module_from_id (id);
-}
-
-static sexp
-GPtrArray_to_scheme_list (sexp ctx, const GPtrArray *arr, int index)
-{
-	if (arr->len == index)
-		return SEXP_NULL;
-	else
-		return sexp_cons (ctx,
-				  sexp_c_string (ctx, (char *)arr->pdata[index], -1),
-				  GPtrArray_to_scheme_list (ctx, arr, index + 1));
 }
 
 sexp
@@ -112,8 +100,8 @@ scmapi_get_message_source (sexp ctx, sexp self, sexp n)
 	if (mod == NULL)
 		return SEXP_NULL;
 
-	const IrciumMessage *msg = mod->mod_ctx.msg;
-	return sexp_c_string (ctx, (char *)ircium_message_get_source (msg), -1);
+	const irc_msg *msg = mod->mod_ctx.msg;
+	return sexp_c_string (ctx, msg->prefix, -1);
 }
 
 sexp
@@ -123,19 +111,30 @@ scmapi_get_message_command (sexp ctx, sexp self, sexp n)
 	if (mod == NULL)
 		return SEXP_NULL;
 
-	const IrciumMessage *msg = mod->mod_ctx.msg;
-	return sexp_c_string (ctx, (char *)ircium_message_get_command (msg), -1);
+	const irc_msg *msg = mod->mod_ctx.msg;
+	return sexp_c_string (ctx, msg->command, -1);
 }
 
-sexp
-scmapi_get_message_tags (sexp ctx, sexp self, sexp n)
-{
-	scm_module *mod = get_module (ctx);
-	if (mod == NULL)
-		return SEXP_NULL;
+/* sexp */
+/* scmapi_get_message_tags (sexp ctx, sexp self, sexp n) */
+/* { */
+/* scm_module *mod = get_module (ctx); */
+/* if (mod == NULL) */
+/* return SEXP_NULL; */
 
-	const IrciumMessage *msg = mod->mod_ctx.msg;
-	return GPtrArray_to_scheme_list (ctx, ircium_message_get_tags (msg), 0);
+/* const irc_msg *msg = mod->mod_ctx.msg; */
+/* return array_to_scheme_list (ctx, *msg->tags, 0); */
+/* } */
+
+static sexp
+msg_params_to_scheme_list (sexp ctx, struct irc_msg_params *arr, int index)
+{
+	if (arr->len == index)
+		return SEXP_NULL;
+	else
+		return sexp_cons (ctx,
+				  sexp_c_string (ctx, arr->params[index], -1),
+				  msg_params_to_scheme_list (ctx, arr, index + 1));
 }
 
 sexp
@@ -145,8 +144,8 @@ scmapi_get_message_params (sexp ctx, sexp self, sexp n)
 	if (mod == NULL)
 		return SEXP_NULL;
 
-	const IrciumMessage *msg = mod->mod_ctx.msg;
-	return GPtrArray_to_scheme_list (ctx, ircium_message_get_params (msg), 0);
+	const irc_msg *msg = mod->mod_ctx.msg;
+	return msg_params_to_scheme_list (ctx, msg->params, 0);
 }
 
 void
@@ -174,5 +173,5 @@ scmapi_define_foreign_functions (sexp ctx)
 	sexp_define_foreign (ctx, env, "get-message-source", 0, scmapi_get_message_source);
 	sexp_define_foreign (ctx, env, "get-message-command", 0, scmapi_get_message_command);
 	sexp_define_foreign (ctx, env, "get-message-params", 0, scmapi_get_message_params);
-	sexp_define_foreign (ctx, env, "get-message-tags", 0, scmapi_get_message_tags);
+	/* sexp_define_foreign (ctx, env, "get-message-tags", 0, scmapi_get_message_tags); */
 }

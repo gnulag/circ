@@ -1,13 +1,13 @@
 #ifndef SCHEME_H
 #define SCHEME_H
 
-#include "ircium-parser/ircium-message.h"
+#include "irc/irc.h"
 #include <chibi/eval.h>
 
 typedef struct mod_context
 {
 	const irc_server *serv;
-	const IrciumMessage *msg;
+	irc_msg *msg;
 } mod_context;
 
 typedef struct scm_module

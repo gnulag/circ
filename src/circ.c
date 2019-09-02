@@ -14,7 +14,6 @@
 #include "utlist/list.h"
 
 #include "irc/hooks.h"
-#include "ircium-parser/ircium-message.h"
 #include "log/log.h"
 
 #include "scheme/scheme.h"

@@ -19,7 +19,6 @@
 
 #include "b64/b64.h"
 
-#include "ircium-parser/ircium-message.h"
 #include "log/log.h"
 
 #define IRC_MESSAGE_SIZE 8192 // IRCv3 message size + 1 for '\0'
@@ -61,7 +60,7 @@ irc_process_write_message_queue (irc_connection *conn);
 static int
 irc_read_bytes (const irc_server *, char *, size_t);
 static int
-irc_write_message (const irc_server *s, const IrciumMessage *message);
+irc_write_message (const irc_server *s, irc_msg *message);
 static int
 irc_write_bytes (const irc_server *s, const char *buf, size_t nbytes);
 static void
@@ -284,14 +283,17 @@ handle_message (irc_connection *conn, const char *message)
 	if (msg_len == 0)
 		return;
 
-	GByteArray *gbuf = g_byte_array_new ();
-	gbuf = g_byte_array_append (gbuf, (guint8 *)message, msg_len);
-	const IrciumMessage *parsed_message = ircium_message_parse (gbuf, false);
-	const char *command = ircium_message_get_command (parsed_message);
-	exec_hooks (conn->server, command, parsed_message);
-	exec_hooks (conn->server, "*", parsed_message);
+	struct irc_msg *parsed_msg = alloc_msg ();
+	const int ret = ircmsg_parse (message, msg_len, &parse_cbs, parsed_msg);
 
-	g_byte_array_unref (gbuf);
+	if (ret == 0) {
+		log_info ("ERROR: parsing message");
+	} else {
+		exec_hooks (conn->server, parsed_msg->command, parsed_msg);
+		exec_hooks (conn->server, "*", parsed_msg);
+	}
+
+	free_msg (parsed_msg);
 }
 
 /* irc_read_message reads an IRC message to a buffer */
@@ -337,25 +339,22 @@ irc_read_bytes (const irc_server *s, char *buf, size_t nbytes)
 	return ret;
 }
 
-/* Serialize an IrciumMessage and send it to the server */
+/* Serialize an irc_msg and send it to the server */
 void
-irc_push_message (const irc_server *s, const IrciumMessage *message)
+irc_push_message (const irc_server *s, irc_msg *message)
 {
-	GBytes *bytes = ircium_message_serialize (message);
+	size_t serialized_length =
+	  ircmsg_serialize_buffer_len (&serializer_cbs,
+				       message);
 
-	gsize len = 0;
-	guint8 *data = g_bytes_unref_to_data (bytes, &len);
+	uint8_t *serialize_buf = calloc (serialized_length + 1,
+					 sizeof (*serialize_buf));
 
-	irc_push_string (s, (char *)data);
-}
+	ircmsg_serialize (serialize_buf, serialized_length, &serializer_cbs, message);
 
-static int
-irc_write_message (const irc_server *s, const IrciumMessage *message)
-{
-	GBytes *bytes = ircium_message_serialize (message);
-	gsize len = 0;
-	guint8 *data = g_bytes_unref_to_data (bytes, &len);
-	return irc_write_bytes (s, (char *)data, (size_t)len);
+	irc_push_string (s, (char *)serialize_buf);
+
+	/* free_msg (message); */
 }
 
 void
@@ -567,12 +566,9 @@ quit_irc_connection (const irc_server *s)
 {
 	irc_connection *conn = get_irc_server_connection (s);
 
-	GPtrArray *pass_params = g_ptr_array_new_full (1, g_free);
-	g_ptr_array_add (pass_params, "go i must now");
-	const IrciumMessage *pass_cmd =
-	  ircium_message_new (NULL, NULL, "QUIT", pass_params);
-
-	irc_write_message (s, pass_cmd);
+	char *params[1] = { "go i must now" };
+	irc_msg *quit_msg = irc_msg_new (NULL, "QUIT", 1, params);
+	irc_push_message (s, quit_msg);
 
 	conn->ev_is_running = false;
 	gnutls_deinit (conn->tls_session);
