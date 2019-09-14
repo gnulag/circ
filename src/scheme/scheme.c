@@ -171,11 +171,10 @@ scm_add_regex_hook (const char *rx_str, sexp func, scm_module *mod)
 }
 
 static void
-scm_exec_regex_hooks (const irc_server *s, const IrciumMessage *msg)
+scm_exec_regex_hooks (const irc_server *s, const irc_msg *msg)
 {
 	regex_hook *hooks;
-	const GPtrArray *params = ircium_message_get_params (msg);
-	char *text = params->pdata[1];
+	char *text = msg->params->params[1];
 	for (hooks = regex_hooks; hooks != NULL; hooks = hooks->next)
 		if (regexec (hooks->regex, text, 0, NULL, 0) == 0)
 			scm_run_module (hooks->mod, hooks->func, s, msg);
