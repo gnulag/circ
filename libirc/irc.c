@@ -287,13 +287,12 @@ handle_message (irc_connection *conn, const char *message)
 	const int ret = ircmsg_parse (message, msg_len, &parse_cbs, parsed_msg);
 
 	if (ret == 0) {
-		log_info ("ERROR: parsing message");
+		log_info ("ERROR: parsing message\n");
 	} else {
 		exec_hooks (conn->server, parsed_msg->command, parsed_msg);
 		exec_hooks (conn->server, "*", parsed_msg);
+		free_msg (parsed_msg);
 	}
-
-	free_msg (parsed_msg);
 }
 
 /* irc_read_message reads an IRC message to a buffer */

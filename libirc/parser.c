@@ -196,42 +196,29 @@ append_param (char *param, struct irc_msg_params *params)
 void
 free_tags (struct irc_msg_tags *tags)
 {
-	if (tags == NULL) {
+	if (tags != NULL) {
+		if (tags->tags != NULL) {
+			for (size_t i = 0; i < tags->len; ++i) {
+				free (tags->tags[i]->name);
+				free (tags->tags[i]->value);
+				free (tags->tags[i]);
+			}
+		}
 		free (tags);
-		return;
 	}
-
-	if (tags->len == 0) {
-		free (tags);
-		return;
-	}
-
-	for (size_t i = 0; i < tags->len; ++i) {
-		free (tags->tags[i]->name);
-		free (tags->tags[i]->value);
-		free (tags->tags[i]);
-	}
-	free (tags);
 }
 
 void
 free_params (struct irc_msg_params *params)
 {
-	if (params == NULL) {
+	if (params != NULL) {
+		if (params->params != NULL) {
+			for (size_t i = 0; i < params->len; ++i) {
+				free (params->params[i]);
+			}
+		}
 		free (params);
-		return;
 	}
-
-	if (params->len == 0) {
-		free (params);
-		return;
-	}
-
-	size_t params_len = ptrarr_len ((const void **)params);
-	for (size_t i = 0; i < params_len; ++i) {
-		free (params->params[i]);
-	}
-	free (params);
 }
 
 struct irc_msg *
