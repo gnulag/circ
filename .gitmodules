@@ -1,0 +1,3 @@
+[submodule "libirc/ircmsg"]
+	path = libirc/ircmsg
+	url = https://github.com/sham1/ircmsg.git
