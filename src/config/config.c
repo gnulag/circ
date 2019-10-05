@@ -9,6 +9,32 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool
+cjson_parse_bool (const cJSON *json, char *field, bool defaultv)
+{
+	cJSON *value = cJSON_GetObjectItemCaseSensitive (json, field);
+	if (defaultv) {
+		if (cJSON_IsFalse (value))
+			return false;
+		return true;
+	} else {
+		if (cJSON_IsTrue (value))
+			return true;
+		return false;
+	}
+}
+
+static char *
+cjson_parse_string (const cJSON *json, char *field, char *defaultv)
+{
+	cJSON *value = cJSON_GetObjectItemCaseSensitive (json, field);
+	if (cJSON_IsString (value) && value->valuestring != NULL) {
+		strdup (value->valuestring);
+	} else {
+		strdup (defaultv);
+	}
+}
+
 static struct config_t *config;
 
 struct config_t *
@@ -82,120 +108,33 @@ parse_config (const char *config_file_path)
 
 	config = malloc (sizeof (config_t));
 
-	cJSON *debug = cJSON_GetObjectItemCaseSensitive (json, "debug");
-	if (cJSON_IsTrue (debug))
-		config->debug = true;
-	else
-		config->debug = false;
+	config->debug = cjson_parse_bool (json, "debug", false);
 
-	cJSON *cmd_prefix = cJSON_GetObjectItemCaseSensitive (json, "cmd_prefix");
-	if (cJSON_IsString (cmd_prefix) && cmd_prefix->valuestring != NULL) {
-		config->cmd_prefix = strdup (cmd_prefix->valuestring);
-	} else {
-		config->cmd_prefix = strdup ("%");
-	}
-
-	cJSON *db_path = cJSON_GetObjectItemCaseSensitive (json, "db_path");
-	if (cJSON_IsString (db_path) && db_path->valuestring != NULL) {
-		config->db_path = strdup (db_path->valuestring);
-	} else {
-		config->db_path = strdup ("db.sqlite3");
-	}
-
-	cJSON *scheme_mod_dir =
-	  cJSON_GetObjectItemCaseSensitive (json, "scheme_mod_dir");
-	if (cJSON_IsString (scheme_mod_dir) &&
-	    scheme_mod_dir->valuestring != NULL) {
-		config->scheme_mod_dir = strdup (scheme_mod_dir->valuestring);
-	} else {
-		config->scheme_mod_dir = strdup ("scheme_mods/");
-	}
+	config->cmd_prefix = cjson_parse_string (json, "cmd_prefix", "%");
+	config->db_path = cjson_parse_string (json, "db_path", "db.sqlite3");
+	config->scheme_mod_dir = cjson_parse_string (json, "scheme_mod_dir", "scheme_mods/");
 
 	/* Parse Servers section */
 	cJSON *server = cJSON_GetObjectItemCaseSensitive (json, "server");
 	if (cJSON_IsObject (server)) {
 		config->server = malloc (sizeof (irc_server));
 
-		cJSON *name = cJSON_GetObjectItemCaseSensitive (server, "name");
-		if (cJSON_IsString (name) && (name->valuestring != NULL)) {
-			config->server->name = strdup (name->valuestring);
-		} else
-			err (1, "config: name is not a string");
-
-		cJSON *host = cJSON_GetObjectItemCaseSensitive (server, "host");
-		if (cJSON_IsString (host) && (host->valuestring != NULL)) {
-			config->server->host = strdup (host->valuestring);
-		} else
-			err (1, "config: host is not a string");
-
-		cJSON *port = cJSON_GetObjectItemCaseSensitive (server, "port");
-		if (cJSON_IsString (port) && (port->valuestring != NULL)) {
-			config->server->port = strdup (port->valuestring);
-		} else
-			err (1, "config: port is not a string");
-
-		cJSON *secure = cJSON_GetObjectItemCaseSensitive (server, "secure");
-		if (cJSON_IsTrue (secure))
-			config->server->secure = 1;
-		else if (cJSON_IsFalse (secure))
-			config->server->secure = 0;
-		else
-			err (1, "config: secure is not a bool");
+		config->server->name = cjson_parse_string (server, "name", "snoonet");
+		config->server->host = cjson_parse_string (server, "host", "irc.snoonet.org");
+		config->server->port = cjson_parse_string (server, "port", "6667");
+		config->server->secure = cjson_parse_bool (server, "secure", false);
 
 		/* Add user data to server */
 		cJSON *user = cJSON_GetObjectItemCaseSensitive (server, "user");
 		if (cJSON_IsObject (user)) {
-			struct irc_user *tmp_user;
-			tmp_user = malloc (sizeof (irc_user));
+			config->server->user = malloc (sizeof (irc_user));
 
-			cJSON *nickname =
-			  cJSON_GetObjectItemCaseSensitive (user, "nickname");
-			if (cJSON_IsString (nickname) && (nickname->valuestring != NULL)) {
-				tmp_user->nickname = strdup (nickname->valuestring);
-			} else
-				err (1, "config: nickname is not a string");
-
-			cJSON *ident = cJSON_GetObjectItemCaseSensitive (user, "ident");
-			if (cJSON_IsString (ident) && (ident->valuestring != NULL)) {
-				tmp_user->ident = strdup (ident->valuestring);
-			} else
-				err (1, "config: ident is not a string");
-
-			cJSON *realname =
-			  cJSON_GetObjectItemCaseSensitive (user, "realname");
-			if (cJSON_IsString (realname) && (realname->valuestring != NULL)) {
-				tmp_user->realname = strdup (realname->valuestring);
-			} else
-				err (1, "config: realname is not a string");
-
-			cJSON *sasl_enabled =
-			  cJSON_GetObjectItemCaseSensitive (user, "sasl_enabled");
-			if (cJSON_IsTrue (sasl_enabled)) {
-				tmp_user->sasl_enabled = true;
-			} else if (cJSON_IsFalse (sasl_enabled)) {
-				tmp_user->sasl_enabled = false;
-			} else
-				err (1, "config: sasl_enabled is not a bool");
-
-			cJSON *sasl_user =
-			  cJSON_GetObjectItemCaseSensitive (user, "sasl_user");
-			if (cJSON_IsString (sasl_user) &&
-			    (sasl_user->valuestring != NULL)) {
-				tmp_user->sasl_user = strdup (sasl_user->valuestring);
-			} else
-				err (1, "config: sasl_user is not a string");
-
-			cJSON *sasl_pass =
-			  cJSON_GetObjectItemCaseSensitive (user, "sasl_pass");
-			if (cJSON_IsString (sasl_pass) &&
-			    (sasl_pass->valuestring != NULL)) {
-				tmp_user->sasl_pass = strdup (sasl_pass->valuestring);
-			} else
-				err (1, "config: sasl_pass is not a string");
-
-			config->server->user = malloc (sizeof (*tmp_user));
-			memcpy (config->server->user, tmp_user, sizeof (*tmp_user));
-			free (tmp_user);
+			config->server->user->nickname = cjson_parse_string (user, "nickname", "circ");
+			config->server->user->ident = cjson_parse_string (user, "ident", "circ");
+			config->server->user->realname = cjson_parse_string (user, "realname", "circ");
+			config->server->user->sasl_enabled = cjson_parse_bool (user, "sasl_enabled", false);
+			config->server->user->sasl_user = cjson_parse_string (user, "sasl_user", "circ");
+			config->server->user->sasl_pass = cjson_parse_string (user, "sasl_pass", "circ");
 		}
 
 		/* Iter channels and add to the server */
