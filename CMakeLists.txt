@@ -36,7 +36,7 @@ find_package(GLIB            COMPONENTS gobject REQUIRED)
 # get and build chibi
 if(NOT IS_DIRECTORY ${CMAKE_BINARY_DIR}/chibi-scheme)
 	execute_process(
-		COMMAND git clone git@github.com:ashinn/chibi-scheme
+		COMMAND git clone https://github.com/ashinn/chibi-scheme
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 	)
 endif()
