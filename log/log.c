@@ -29,6 +29,8 @@ log_error (char *fmt, ...)
 {
 	va_list argptr;
 	va_start (argptr, fmt);
+
+	fputs ("Error: ", stderr);
 	vfprintf (stderr, fmt, argptr);
 	va_end (argptr);
 }
