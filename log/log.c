@@ -23,3 +23,12 @@ log_info (char *fmt, ...)
 	vprintf (fmt, argptr);
 	va_end (argptr);
 }
+
+void
+log_error (char *fmt, ...)
+{
+	va_list argptr;
+	va_start (argptr, fmt);
+	vfprintf (stderr, fmt, argptr);
+	va_end (argptr);
+}
