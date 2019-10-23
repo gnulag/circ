@@ -86,7 +86,8 @@ sasl_cap_hook (const irc_server *s, const irc_msg *msg)
 static void
 sasl_error_hook (const irc_server *s, const irc_msg *msg)
 {
-	err (1, "Error during SASL Auth");
+	log_error ("Error during SASL Auth\n");
+	raise (SIGINT);
 }
 
 static void
@@ -129,6 +130,13 @@ invite_hook (const irc_server *s, const irc_msg *msg)
 	irc_push_message (s, join_msg);
 }
 
+static void
+err_nickname_in_use_hook (const irc_server *s, const irc_msg *msg)
+{
+	log_error ("Nickname already in use\n");
+	raise (SIGINT);
+}
+
 void
 register_core_hooks ()
 {
@@ -147,4 +155,5 @@ register_core_hooks ()
 	add_hook ("INVITE", invite_hook);
 	add_hook ("PING", ping_hook);
 	add_hook ("001", channel_join_hook);
+	add_hook ("433", err_nickname_in_use_hook);
 }
