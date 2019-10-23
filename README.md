@@ -9,14 +9,33 @@ something.
 
 ## Building
 
-Requirements:
+```
+$ git clone --recurse-submodules https://github.com/gnulag/circ.git
+$ mkdir circ/build
+$ cmake ..
+$ make
+```
+
+### Requirements:
 
 * `cmake`
 * `make`
 * a C compiler
+* clang-format
 * libev
 * gnutls
 * glib
+* libsqlite3
+
+#### Debian/Ubuntu
+```
+$ sudo apt install build-essential cmake libev-dev gnutls-dev glib2.0-dev libsqlite3-dev clang-format-8
+```
+
+#### Fedora
+```
+$ sudo dnf install "@Development Tools" cmake glib2-devel libev-devel gnutls-devel libsqlite3x-devel clang-devel
+```
 
 ## Running
 
