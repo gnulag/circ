@@ -11,4 +11,7 @@ log_info (char *fmt, ...);
 void
 log_debug (char *fmt, ...);
 
+void
+log_error (char *fmt, ...);
+
 #endif /* LOG_H */
