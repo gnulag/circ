@@ -1,0 +1,22 @@
+name: C CI
+
+on:
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: checkout submodules
+      run: git submodule update --init --recursive
+    - name: installdeps
+      run: sudo apt update && sudo apt install build-essential cmake libev-dev gnutls-dev glib2.0-dev libsqlite3-dev clang-format-8 && sudo ln -s /usr/bin/clang-format-8 /usr/bin/clang-format
+    - name: configure
+      run: mkdir -p build && cd build && cmake ..
+    - name: make
+      run: cd build && make
