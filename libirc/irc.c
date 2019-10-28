@@ -1,7 +1,7 @@
 #include <ev.h>		   // Event loop
 #include <gnutls/gnutls.h> // TLS support
-#include <netdb.h>	 // getaddrinfo
-#include <sys/socket.h>    // Socket handling
+#include <netdb.h>	   // getaddrinfo
+#include <sys/socket.h>	   // Socket handling
 
 #include <err.h> // err for panics
 #include <errno.h>
@@ -284,7 +284,7 @@ handle_message (irc_connection *conn, const char *message)
 		return;
 
 	struct irc_msg *parsed_msg = alloc_msg ();
-	const int ret = ircmsg_parse (message, msg_len, &parse_cbs, parsed_msg);
+	const int ret = ircmsg_parse ((const uint8_t *)message, msg_len, &parse_cbs, parsed_msg);
 
 	if (ret == 0) {
 		log_info ("ERROR: parsing message\n");

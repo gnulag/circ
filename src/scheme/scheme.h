@@ -7,7 +7,7 @@
 typedef struct mod_context
 {
 	const irc_server *serv;
-	irc_msg *msg;
+	const irc_msg *msg;
 } mod_context;
 
 typedef struct scm_module

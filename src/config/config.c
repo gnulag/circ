@@ -29,9 +29,9 @@ cjson_parse_string (const cJSON *json, char *field, char *defaultv)
 {
 	cJSON *value = cJSON_GetObjectItemCaseSensitive (json, field);
 	if (cJSON_IsString (value) && value->valuestring != NULL) {
-		strdup (value->valuestring);
+		return strdup (value->valuestring);
 	} else {
-		strdup (defaultv);
+		return strdup (defaultv);
 	}
 }
 

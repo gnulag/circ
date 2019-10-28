@@ -14,9 +14,6 @@
 (define (reply-action text)
   (send-action (get-channel) text))
 
-(define (get-channel)
-  (car (get-message-params)))
-
 (define (get-text)
   (cadr (get-message-params)))
 
@@ -29,6 +26,12 @@
     (cadr
      (string-split (get-message-source) #\!))
     #\@)))
+
+(define (get-channel)
+  (let ((channel (car (get-message-params))))
+    (if (equal? channel (get-bot-nick))
+        (get-nick)
+        channel)))
 
 (define (get-host)
   (cadr (string-split (get-message-source) #\@)))
