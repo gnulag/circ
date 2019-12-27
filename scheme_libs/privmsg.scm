@@ -15,7 +15,7 @@
   (send-action (get-channel) text))
 
 (define (get-channel)
-  (car (get-message-params)))
+  (if (string-prefix? "#" (car (get-message-params))) (car (get-message-params)) (get-nick)))
 
 (define (get-text)
   (cadr (get-message-params)))
