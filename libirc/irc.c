@@ -1,7 +1,7 @@
 #include <ev.h>		   // Event loop
 #include <gnutls/gnutls.h> // TLS support
-#include <netdb.h>	 // getaddrinfo
-#include <sys/socket.h>    // Socket handling
+#include <netdb.h>	   // getaddrinfo
+#include <sys/socket.h>	   // Socket handling
 
 #include <err.h> // err for panics
 #include <errno.h>
@@ -564,12 +564,23 @@ void
 quit_irc_connection (const irc_server *s)
 {
 	irc_connection *conn = get_irc_server_connection (s);
+	conn->ev_is_running = false;
 
 	char *params[1] = { "go i must now" };
 	irc_msg *quit_msg = irc_msg_new (NULL, "QUIT", 1, params);
-	irc_push_message (s, quit_msg);
 
-	conn->ev_is_running = false;
+	size_t serialized_length =
+	  ircmsg_serialize_buffer_len (&serializer_cbs,
+				       quit_msg);
+
+	uint8_t *serialize_buf = calloc (serialized_length + 1,
+					 sizeof (*serialize_buf));
+
+	ircmsg_serialize (serialize_buf, serialized_length, &serializer_cbs, quit_msg);
+	irc_write_bytes (conn->server, serialize_buf, serialized_length);
+
+	free (serialize_buf);
+
 	gnutls_deinit (conn->tls_session);
 	gnutls_certificate_free_credentials (conn->tls_creds);
 	gnutls_global_deinit ();
