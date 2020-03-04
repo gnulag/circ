@@ -1,0 +1,70 @@
+#+TITLE: README
+
+* Configuration
+Modules are configured in the ~modules~ section of the configuration file.
+They have the following fields:
++ ~name~: a self descriptive name for the module to show up in the help page.
++ ~cmd~: the command to start the module, a path or simply the name of a binary
+  located in ~$PATH~.
++ ~cwd~: directory to execute the module in, should it matter for something like
+  python.
++ ~config~: an arbitrary JSON object that is passed to the module during
+  initialization for configuration.
+* Module Initialization
+Modules are initialized at the start of circ and are mostly self configuring,
+the module process is opened using ~fork()~ and an ~exec()~ variant. A connection to
+it is then established using ~socketpair()~. This could be extended to work over TCP.
+
+circ, the host now sends an ~INIT~ message and a ~CONFIG~ message containing
+plugin configuration data.
+#+BEGIN_SRC json
+{ "cmd": "INIT" }
+{ "cmd": "CONF_MOD", "config": {<plugin config>} }
+#+END_SRC
+
+only after receiving both, the plugin shall respond with a ~CONF_HOST~ message
+which contains a list of matchers that trigger this plugin. See [[Matchers]] for
+details.
+#+BEGIN_SRC json
+{ "cmd": "CONF_HOST", "matcher": ["^PREFIXecho", "^[.*?]"] }
+#+END_SRC
+
+At this point the plugin is configured.
+
+* Module - Host Message Communication
+On receiving a new message the host checks it against all known matchers, once a
+match is found a ~MSG~ is dispatched to the matching plugin.
+#+BEGIN_SRC json
+// Should "msg" only contain the message with stripped prefix?
+{ "cmd": "MSG",
+  "channel": "#gnulag",
+  "user": "audron!audron@cocaine.farm",
+  "matcher": "^PREFIXecho",
+  "msg": "this is a message" }
+#+END_SRC
+
+The plugin does it's thing and returns a ~RES~ message.
+#+BEGIN_SRC json
+// Should "msg" only contain the message with stripped prefix?
+{ "cmd": "RES",
+  "target": { // Use a list to support multiple targets?
+      "type": "channel",
+      "target": "#gnulag"
+  }
+  "matcher": "^PREFIXecho",
+  "msg": "this is a response" }
+#+END_SRC
+
+The host dispatches the response to the targets in IRC.
+
+* Error Handling
+Modules should return an ~ERR~ message on encountering an unrecoverable error on
+their part and ~exit()~ with an appropriate error code.
+#+BEGIN_SRC json
+{ "cmd": "ERR",
+  "err": "descriptive string explaining the error" }
+#+END_SRC
+
+If a plugin terminates, the host should restart it with a backup mechanism.
+After multiple terminations in X period of time it should be market as ~FAILED~
+and not started again.
